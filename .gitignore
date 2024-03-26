@@ -1,6 +1,7 @@
 out
 dist
 node_modules
+PythonEnvironment
 .vscode-test/
 *.vsix
 .venv/
