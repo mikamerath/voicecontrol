@@ -12,6 +12,10 @@ import nox  # pylint: disable=import-error
 
 
 def _install_bundle(session: nox.Session) -> None:
+    # If things won't install in requirements.in, manually install them here
+    # the -t ./bundled/libs option is necessary for them to be included
+    session.install("torch", "-t", "./bundled/libs")
+    session.install("transformers", "-t", "./bundled/libs")
     session.install(
         "-t",
         "./bundled/libs",
@@ -91,6 +95,7 @@ def _update_npm_packages(session: nox.Session) -> None:
 
 def _setup_template_environment(session: nox.Session) -> None:
     session.install("wheel", "pip-tools")
+    #session.run("python", "-m", "pip", "install", "transformers")
     session.run("pip-compile", "--generate-hashes", "--resolver=backtracking", "--upgrade", "./requirements.in")
     session.run(
         "pip-compile",
