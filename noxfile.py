@@ -16,6 +16,7 @@ def _install_bundle(session: nox.Session) -> None:
     # the -t ./bundled/libs option is necessary for them to be included
     session.install("torch", "-t", "./bundled/libs")
     session.install("transformers", "-t", "./bundled/libs")
+    session.install("nltk", "-t", "./bundled/libs")
     session.install(
         "-t",
         "./bundled/libs",
