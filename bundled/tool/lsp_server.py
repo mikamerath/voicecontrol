@@ -13,6 +13,8 @@ import sysconfig
 import traceback
 from typing import Any, Optional, Sequence
 
+from transformers import pipeline
+
 
 # **********************************************************
 # Update sys.path before importing any bundled libraries.
