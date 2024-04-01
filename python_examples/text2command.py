@@ -13,6 +13,7 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords 
 from nltk.stem import WordNetLemmatizer
+import heapq
 
 
 """This helper method takes the text (text produced from the speech to text model)
@@ -52,8 +53,9 @@ finds the phrases that are the most similar to the text. Uses pre-processing and
 Returns a list of similar phrases."""
 def findSimilarPhrases(text):
     # Limit on number of suggested commands...will be taken from configuration settings later on. 
-    # For now, hardcoded to 3. 
+    # For now, hardcoded to 3. This limit cannot be greater than the amount of commands in the file.
     commandLimit = 3
+    commandCount = 0
 
     # List of available phrases that are similar to the text.
     similarPhrases = [] # use this for ambiguous text for suggestions 
@@ -73,19 +75,18 @@ def findSimilarPhrases(text):
         if(similarity == 1.0):
             # Remove the newline from the phrase.
             similarPhrase.append(phrase.split("\n")[0])
-            print(similarPhrase)
+            print("Perfect match!")
             return similarPhrase
         # No exact phrases were found, so suggest some options.
-        elif(similarity >= 0.50):
-            if commandLimit !=0:
-                similarPhrases.append(phrase.split("\n")[0])
-                commandLimit-=1
-    print(similarPhrases)
-    return similarPhrases
+        else:
+            similarPhrases.append((similarity, phrase.split("\n")[0]))
+            commandCount+=1
+    # Find the most similar phrases based on the command limit. 
+    similarPhrases.sort() # Phrases are sorted in ascending order (most similar in higher indices).
+    finalCommands = []
+    # Return the number of suggested command equals to the command limit, only if there are enough commands in the file.
+    if(commandLimit <= commandCount):
+        for phrase in similarPhrases[-commandLimit:]:
+            finalCommands.append(phrase[1]) # Extract the command from the tuple.
 
-# Testing 
-findSimilarPhrases("Terminal: Create New Terminal") # exact command so should return one command
-findSimilarPhrases("resize terminal") # should return suggestions
-findSimilarPhrases("Add cursor above") # exact command so should return one command
-findSimilarPhrases("Delete line") # exact command so should return one command
-findSimilarPhrases("add cursor") # should return suggestions 
+    return finalCommands
