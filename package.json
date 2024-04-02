@@ -2,13 +2,13 @@
     "name": "voice-control",
     "displayName": "VoiceControl",
     "description": "Linting support for python files using `voice-control`.",
-    "version": "2022.0.0-dev",
+    "version": "0.1.0-dev",
     "preview": true,
     "serverInfo": {
         "name": "VoiceControl",
         "module": "voice-control"
     },
-    "publisher": "<team-voice-control>",
+    "publisher": "VoiceControlGroup",
     "license": "MIT",
     "homepage": "https://github.com/<my-github>/<my-extension-project>",
     "repository": {
