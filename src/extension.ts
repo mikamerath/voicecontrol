@@ -85,6 +85,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         registerCommand(`${serverId}.restart`, async () => {
             await runServer();
         }),
+
+        registerCommand(`${serverId}.startUI`, () => {
+            startUI();
+        }),
     );
 
     setImmediate(async () => {
@@ -97,10 +101,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await runServer();
         }
     });
+
+    startUI();
 }
 
 export async function deactivate(): Promise<void> {
     if (lsClient) {
         await lsClient.stop();
     }
+}
+
+let statusBarItem: vscode.StatusBarItem;
+export function startUI()
+{
+    console.log("Starting UI");
+    statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+
+   // Show message in the status bar
+    statusBarItem.text = 'Voice Control : Waiting for activation word';
+    statusBarItem.show();
+
+    // Clear the status bar after a delay (e.g., 5 seconds)
+    //setTimeout(() => {
+        //statusBarItem.hide();
+    //}, 5000);
+    vscode.window.showInformationMessage('Voice Control will give you its status in the bottom left corner :)');
 }

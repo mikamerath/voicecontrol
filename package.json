@@ -47,7 +47,7 @@
         "onLanguage:python",
         "workspaceContains:*.py"
     ],
-    "main": "./dist/extension.js",
+    "main": "dist/extension.js",
     "scripts": {
         "vscode:prepublish": "npm run package",
         "compile": "webpack",
@@ -127,9 +127,14 @@
         },
         "commands": [
             {
-                "title": "Restart Server",
+                "title":"Restart Server",
                 "category": "VoiceControl",
-                "command": "voice-control.restart"
+                "command": "voice-control.restart",
+
+                "title":"Start Voice Control UI",
+                "category": "VoiceControl",
+                "command": "voice-control.startUI"
+
             }
         ]
     },
