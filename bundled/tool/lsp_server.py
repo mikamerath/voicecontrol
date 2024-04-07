@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 """Implementation of tool support over LSP."""
 from __future__ import annotations
+import asyncio
+# import websockets
 
 import copy
 import json
@@ -12,9 +14,6 @@ import sys
 import sysconfig
 import traceback
 from typing import Any, Optional, Dict, Sequence
-
-from transformers import pipeline
-
 
 # **********************************************************
 # Update sys.path before importing any bundled libraries.
@@ -52,28 +51,79 @@ LSP_SERVER = server.LanguageServer(
     name="VoiceControl", version="0.1.0", max_workers=MAX_WORKERS
 )
 
-
 # **********************************************************
-# Tool specific code goes below this.
+# Speech to text and text to command
 # **********************************************************
+from transformers import pipeline
+from transformers.pipelines.audio_utils import ffmpeg_microphone_live
+import torch
 
-# Reference:
-#  LS Protocol:
-#  https://microsoft.github.io/language-server-protocol/specifications/specification-3-16/
-#
-#  Sample implementations:
-#  Pylint: https://github.com/microsoft/vscode-pylint/blob/main/bundled/tool
-#  Black: https://github.com/microsoft/vscode-black-formatter/blob/main/bundled/tool
-#  isort: https://github.com/microsoft/vscode-isort/blob/main/bundled/tool
+import text2command
 
-# Shouldn't need this any more
-TOOL_MODULE = "voice-control"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-# Nor this
-TOOL_DISPLAY = "VoiceControl"
+classifier = pipeline(
+    "audio-classification", model="MIT/ast-finetuned-speech-commands-v2", device=device
+)
+transcriber = pipeline(
+    "automatic-speech-recognition", model="openai/whisper-base", device=device
+)
 
-# Don't need this either
-TOOL_ARGS = []  # default arguments always passed to your tool.
+# Uncomment this line to see all of the possible wake words
+# print(classifier.model.config.id2label)
+
+# Transcribes speech and converts it to text
+def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
+    sampling_rate = transcriber.feature_extractor.sampling_rate
+
+    mic = ffmpeg_microphone_live(
+        sampling_rate=sampling_rate,
+        chunk_length_s=chunk_length_s,
+        stream_chunk_s=stream_chunk_s,
+    )
+
+    for item in transcriber(mic, generate_kwargs={"max_new_tokens": 128}):
+        # Uncomment to see the prediction as it happens
+        # sys.stdout.write("\033[K")
+        # print(item["text"], end="\r")
+        if not item["partial"][0]:
+            break
+
+    log_to_output("Finished transcribing")
+    return item["text"]
+
+# Listens for wake word (go) and calls transcribe
+def listen_for_wake_word(
+    wake_word="go",
+    prob_threshold=0.8,
+    chunk_length_s=0.50,
+    stream_chunk_s=0.25,
+    debug=False,
+):
+
+    sampling_rate = classifier.feature_extractor.sampling_rate
+
+    mic = ffmpeg_microphone_live(
+        sampling_rate=sampling_rate,
+        chunk_length_s=chunk_length_s,
+        stream_chunk_s=stream_chunk_s,
+    )
+
+    
+    log_to_output("Listening for wake word...")
+    while True:
+        for prediction in classifier(mic):
+            prediction = prediction[0]
+            if prediction["label"] == wake_word:
+                if prediction["score"] > prob_threshold:
+                    log_to_output("Please say a command")
+                    result = transcribe(chunk_length_s=5.0)
+                    log_to_output("You said: " + result)
+                    command = text2command.findSimilarPhrases(result)
+                    log_to_output(command[0])
+                    LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
+                    prediction["label"] = ""
+                    # log_to_output("Listening for wake word...")
 
 # **********************************************************
 # Required Language Server Initialization and Exit handlers.
@@ -98,6 +148,17 @@ def initialize(params: lsp.InitializeParams) -> None:
     )
 
 
+@LSP_SERVER.feature(lsp.INITIALIZED)
+def initialized(params: lsp.InitializedParams) -> None:
+    """Handler for initialized"""
+    listen_for_wake_word()
+    log_error("We should never get here")
+
+
+
+# **********************************************************
+# Sending/Receiving Messages from the Server
+# **********************************************************
 @LSP_SERVER.feature(lsp.EXIT)
 def on_exit(_params: Optional[Any] = None) -> None:
     """Handle clean up on exit."""
@@ -108,7 +169,6 @@ def on_exit(_params: Optional[Any] = None) -> None:
 def on_shutdown(_params: Optional[Any] = None) -> None:
     """Handle clean up on shutdown."""
     jsonrpc.shutdown_json_rpc()
-
 
 def _get_global_defaults():
     return {
@@ -138,39 +198,6 @@ def _update_workspace_settings(settings):
             **setting,
             "workspaceFS": key,
         }
-
-
-def _get_document_key(document: workspace.Document):
-    if WORKSPACE_SETTINGS:
-        document_workspace = pathlib.Path(document.path)
-        workspaces = {s["workspaceFS"] for s in WORKSPACE_SETTINGS.values()}
-
-        # Find workspace settings for the given file.
-        while document_workspace != document_workspace.parent:
-            if str(document_workspace) in workspaces:
-                return str(document_workspace)
-            document_workspace = document_workspace.parent
-
-    return None
-
-
-# *****************************************************
-# Internal execution APIs.
-# *****************************************************
-
-def _get_updated_env(settings: Dict[str, Any]) -> str:
-    """Returns the updated environment variables."""
-    extra_paths = settings.get("extraPaths", [])
-    paths = os.environ.get("PYTHONPATH", "").split(os.pathsep) + extra_paths
-    python_paths = os.pathsep.join([p for p in paths if len(p) > 0])
-
-    env = {
-        "LS_IMPORT_STRATEGY": settings["importStrategy"],
-        "PYTHONUTF8": "1",
-    }
-    if python_paths:
-        env["PYTHONPATH"] = python_paths
-    return env
 
 
 # *****************************************************
@@ -205,3 +232,4 @@ def log_always(message: str) -> None:
 # *****************************************************
 if __name__ == "__main__":
     LSP_SERVER.start_io()
+    

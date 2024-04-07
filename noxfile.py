@@ -14,6 +14,7 @@ import nox  # pylint: disable=import-error
 def _install_bundle(session: nox.Session) -> None:
     # If things won't install in requirements.in, manually install them here
     # the -t ./bundled/libs option is necessary for them to be included
+    session.install("regex", "-t", "./bundled/libs", "--no-binary", ":all")
     session.install("torch", "-t", "./bundled/libs")
     session.install("transformers", "-t", "./bundled/libs")
     session.install("nltk", "-t", "./bundled/libs")
