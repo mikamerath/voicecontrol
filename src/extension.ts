@@ -62,6 +62,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         if (interpreterDetails.path) {
             traceVerbose(`Using interpreter from Python extension: ${interpreterDetails.path.join(' ')}`);
             lsClient = await restartServer(serverId, serverName, outputChannel, lsClient);
+            lsClient?.start();
+            lsClient?.onNotification('custom/notification', (message) => {
+                traceLog('Received message from Python:', message);
+                if (message.content === 'Delete Line') {
+                    vscode.commands.executeCommand('editor.action.deleteLines').then(
+                        () => {
+                            traceLog('Line deleted');
+                        },
+                        (err) => {
+                            traceError('Error executing deleteLines command:', err);
+                        },
+                    );
+                }
+            });
             return;
         }
 

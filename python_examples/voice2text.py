@@ -3,6 +3,15 @@ from transformers.pipelines.audio_utils import ffmpeg_microphone_live
 import torch
 
 import text2command
+# import asyncio
+# import websockets
+
+# async def send_message(command):
+#     uri = "ws://localhost:6789"
+#     async with websockets.connect(uri) as websocket:
+#         await websocket.send(command)
+#         response = await websocket.recv()
+#         print(f"Received response: {response}")
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -38,7 +47,7 @@ def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
             break
 
     return item["text"]
-
+command = []
 """
 On startup, listens for the wake word to be spoken (in this case, "go").
 After the wake word has been heard, calls transcribe convert the next things
@@ -59,7 +68,7 @@ def listen_for_wake_word(
         chunk_length_s=chunk_length_s,
         stream_chunk_s=stream_chunk_s,
     )
-
+    
     print("Listening for wake word...")
     for prediction in classifier(mic):
         prediction = prediction[0]
@@ -72,6 +81,8 @@ def listen_for_wake_word(
                 command = text2command.findSimilarPhrases(result)
                 # This is where we'll need to message VS Code what the command is
                 print(str(command))
+                asyncio.run(send_message(command))
                 prediction["label"] = ""
-            
+                
+#asyncio.run(send_message(command))            
 listen_for_wake_word()
