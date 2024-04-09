@@ -11,15 +11,12 @@ draft to hopefully use for the prototype/expand upon in the final project. """
 # Import the Natural Language Processing Library. 
 import nltk
 from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords 
-from nltk.stem import WordNetLemmatizer
-import heapq
 
 import commands
 
 
 """This helper method takes the text (text produced from the speech to text model)
-and processes it using NLP techniques to produce a list of its main words."""
+and processes it to get rid of extra characters like punctuation."""
 def __preprocessText(text):
     # Break the text down into words.
     words = word_tokenize(text.lower())
@@ -33,15 +30,10 @@ def __preprocessText(text):
     commonWords.remove("in")
     mainWords = []
     for word in words:
-        # Checks if the word is alphanumeric and is not a common word.
-        if(word.isalnum() and word not in commonWords):
+        # Checks if the word is alphanumeric.
+        if(word.isalnum()):
             mainWords.append(word)
-    # Reduce different forms of word to one single form.
-    lemmatizer = WordNetLemmatizer()
-    finalWords = []
-    for word in mainWords:
-        finalWords.append(lemmatizer.lemmatize(word))
-    return finalWords
+    return mainWords
 
 """Helper method that uses the jaccard similarity algorithm to find how similar two sets of 
 words are. Returns a score between 0.0 (not similar) and 1.0(the same sets of words)."""
@@ -82,6 +74,11 @@ def findSimilarPhrases(text):
 
     # Find all similar phrases to the text. 
     processedText = set(__preprocessText(text))
+    # Check for unideal speech outputs.
+    if(len(processedText) == 1):
+        if "redu" in processedText:
+            processedText.add("redo")
+            processedText.remove("redu")
     for phrase in commands.commands:
         processedPhrase = set(__preprocessText(phrase))
         if(len(processedText) == 1):
@@ -92,7 +89,6 @@ def findSimilarPhrases(text):
         if(similarity == 1.0):
             # Remove the newline from the phrase.
             similarPhrase.append(phrase.split("\n")[0])
-            # print("Perfect match!")
             return similarPhrase
         # No exact phrases were found, so suggest some options.
         else:
