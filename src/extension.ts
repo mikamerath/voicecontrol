@@ -74,13 +74,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                         traceError('Error executing ' + message.content + ' command:', err);
                     },
                 );
-                let commnadName: string = message.content;
-                if (commnadName.toLowerCase().includes('go to line'.toLowerCase())) {
-                    let lineNum: Promise<number> = extractNumber(message.content);
-                    if ((await lineNum) !== -1) {
-                        goToLine(await lineNum);
-                    }
-                }
             });
             return;
         }
@@ -129,24 +122,6 @@ export async function deactivate(): Promise<void> {
     if (lsClient) {
         await lsClient.stop();
     }
-}
-export async function goToLine(lineNumber: number): Promise<void> {
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-        const position = editor.selection.active;
-        const newPosition = position.with(lineNumber - 1, 0);
-        const newSelection = new vscode.Selection(newPosition, newPosition);
-        editor.selection = newSelection;
-        editor.revealRange(newSelection, vscode.TextEditorRevealType.InCenter);
-    }
-}
-
-export async function extractNumber(input: string): Promise<number> {
-    const match = input.match(/\d+/);
-    if (match) {
-        return parseInt(match[0], 10);
-    }
-    return -1;
 }
 
 let statusBarItem: vscode.StatusBarItem;
