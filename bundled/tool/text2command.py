@@ -30,6 +30,7 @@ def __preprocessText(text):
     commonWords.remove("down")
     commonWords.remove("above")
     commonWords.remove("below")
+    commonWords.remove("in")
     mainWords = []
     for word in words:
         # Checks if the word is alphanumeric and is not a common word.
@@ -50,6 +51,20 @@ def __jaccardSimilarity(wordSet1, wordSet2):
     union = len(wordSet1.union(wordSet2))
     return intersection / union 
 
+"""Similar to the method above but for one word commands"""
+def __jaccardSimilarityOneWord(str1: str, str2: str) -> float:
+    # Convert the strings to sets of characters
+    set1, set2 = set(str1), set(str2)
+    str1_first = next(iter(set1))
+    str2_first = next(iter(set2))
+    set3 = set(str1_first)
+    set4 = set(str2_first)
+    # Calculate intersection and union
+    intersection = set3.intersection(set4)
+    union = set3.union(set4)
+    # Calculate and return Jaccard similarity
+    return len(intersection) / len(union)
+
 """Uses the file of available phrases (that are mapped to various VSCode commands) and 
 finds the phrases that are the most similar to the text. Uses pre-processing and jaccard methods.
 Returns a list of similar phrases."""
@@ -69,7 +84,10 @@ def findSimilarPhrases(text):
     processedText = set(__preprocessText(text))
     for phrase in commands.commands:
         processedPhrase = set(__preprocessText(phrase))
-        similarity = __jaccardSimilarity(processedText, processedPhrase)
+        if(len(processedText) == 1):
+            similarity = __jaccardSimilarityOneWord(processedText, processedPhrase)
+        else:
+            similarity = __jaccardSimilarity(processedText, processedPhrase)
         # If the text matches a phrase exactly, return just that phrase. 
         if(similarity == 1.0):
             # Remove the newline from the phrase.

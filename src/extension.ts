@@ -16,6 +16,7 @@ import { checkIfConfigurationChanged, getInterpreterFromSetting } from './common
 import { loadServerDefaults } from './common/setup';
 import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
+import { StringDictionary, countriesAndCapitals } from './command-mapping';
 
 let lsClient: LanguageClient | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -63,17 +64,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             traceVerbose(`Using interpreter from Python extension: ${interpreterDetails.path.join(' ')}`);
             lsClient = await restartServer(serverId, serverName, outputChannel, lsClient);
             lsClient?.start();
-            lsClient?.onNotification('custom/notification', (message) => {
+            lsClient?.onNotification('custom/notification', async (message) => {
                 traceLog('Received message from Python:', message);
-                if (message.content === 'Delete Line') {
-                    vscode.commands.executeCommand('editor.action.deleteLines').then(
-                        () => {
-                            traceLog('Line deleted');
-                        },
-                        (err) => {
-                            traceError('Error executing deleteLines command:', err);
-                        },
-                    );
+                vscode.commands.executeCommand(countriesAndCapitals[message.content]).then(
+                    () => {
+                        traceLog(message.content + ' executed');
+                    },
+                    (err) => {
+                        traceError('Error executing ' + message.content + ' command:', err);
+                    },
+                );
+                let commnadName: string = message.content;
+                if (commnadName.toLowerCase().includes('go to line'.toLowerCase())) {
+                    let lineNum: Promise<number> = extractNumber(message.content);
+                    if ((await lineNum) !== -1) {
+                        goToLine(await lineNum);
+                    }
                 }
             });
             return;
@@ -124,20 +130,37 @@ export async function deactivate(): Promise<void> {
         await lsClient.stop();
     }
 }
+export async function goToLine(lineNumber: number): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        const position = editor.selection.active;
+        const newPosition = position.with(lineNumber - 1, 0);
+        const newSelection = new vscode.Selection(newPosition, newPosition);
+        editor.selection = newSelection;
+        editor.revealRange(newSelection, vscode.TextEditorRevealType.InCenter);
+    }
+}
+
+export async function extractNumber(input: string): Promise<number> {
+    const match = input.match(/\d+/);
+    if (match) {
+        return parseInt(match[0], 10);
+    }
+    return -1;
+}
 
 let statusBarItem: vscode.StatusBarItem;
-export function startUI()
-{
-    console.log("Starting UI");
+export function startUI() {
+    console.log('Starting UI');
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
 
-   // Show message in the status bar
+    // Show message in the status bar
     statusBarItem.text = 'Voice Control : Waiting for activation word';
     statusBarItem.show();
 
     // Clear the status bar after a delay (e.g., 5 seconds)
     //setTimeout(() => {
-        //statusBarItem.hide();
+    //statusBarItem.hide();
     //}, 5000);
     vscode.window.showInformationMessage('Voice Control will give you its status in the bottom left corner :)');
 }

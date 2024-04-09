@@ -117,11 +117,11 @@ def listen_for_wake_word(
             if prediction["label"] == wake_word:
                 if prediction["score"] > prob_threshold:
                     log_to_output("Please say a command")
-                    result = transcribe(chunk_length_s=5.0)
+                    result = transcribe(chunk_length_s=3.0)
                     log_to_output("You said: " + result)
                     command = text2command.findSimilarPhrases(result)
-                    log_to_output(command[0])
-                    LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
+                    log_to_output(command[len(command)- 1])
+                    LSP_SERVER.send_notification('custom/notification', {'content': command[len(command)- 1]})
                     prediction["label"] = ""
                     # log_to_output("Listening for wake word...")
 
