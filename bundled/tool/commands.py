@@ -21,5 +21,5 @@ commands = ["Delete Line",
 "Undo",
 "Redo",
 "Copy",
-"Paste",
+"Paste"
 ]
