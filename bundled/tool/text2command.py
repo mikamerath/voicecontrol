@@ -20,14 +20,6 @@ and processes it to get rid of extra characters like punctuation."""
 def __preprocessText(text):
     # Break the text down into words.
     words = word_tokenize(text.lower())
-    # Remove all the common words.
-    commonWords = set(stopwords.words("english"))
-    # Remove common words that help distinguish commands for more model customization (need to find better way to do this).
-    commonWords.remove("up")
-    commonWords.remove("down")
-    commonWords.remove("above")
-    commonWords.remove("below")
-    commonWords.remove("in")
     mainWords = []
     for word in words:
         # Checks if the word is alphanumeric.
