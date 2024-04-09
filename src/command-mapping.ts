@@ -2,7 +2,7 @@ export interface StringDictionary {
     [key: string]: string;
 }
 
-export let countriesAndCapitals: StringDictionary = {
+export let commandNameToID: StringDictionary = {
     'Accept Inline Completion': 'editor.action.accessibleViewAcceptInlineCompletion',
     'Accept Inline Edit': 'editor.action.inlineEdit.accept',
     'Accept Inline Suggestion': 'editor.action.inlineSuggest.commit',

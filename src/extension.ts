@@ -16,7 +16,7 @@ import { checkIfConfigurationChanged, getInterpreterFromSetting } from './common
 import { loadServerDefaults } from './common/setup';
 import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
-import { StringDictionary, countriesAndCapitals } from './command-mapping';
+import { StringDictionary, commandNameToID } from './command-mapping';
 
 let lsClient: LanguageClient | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -66,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             lsClient?.start();
             lsClient?.onNotification('custom/notification', async (message) => {
                 traceLog('Received message from Python:', message);
-                vscode.commands.executeCommand(countriesAndCapitals[message.content]).then(
+                vscode.commands.executeCommand(commandNameToID[message.content]).then(
                     () => {
                         traceLog(message.content + ' executed');
                     },
