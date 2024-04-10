@@ -120,8 +120,8 @@ def listen_for_wake_word(
                     result = transcribe(chunk_length_s=3.0)
                     log_to_output("You said: " + result)
                     command = text2command.findSimilarPhrases(result)
-                    log_to_output(command[len(command)- 1])
-                    LSP_SERVER.send_notification('custom/notification', {'content': command[len(command)- 1]})
+                    log_to_output(command[0])
+                    LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
                     prediction["label"] = ""
                     # log_to_output("Listening for wake word...")
 
