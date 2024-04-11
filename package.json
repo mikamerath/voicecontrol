@@ -129,12 +129,7 @@
             {
                 "title":"Restart Server",
                 "category": "VoiceControl",
-                "command": "voice-control.restart",
-
-                "title":"Start Voice Control UI",
-                "category": "VoiceControl",
-                "command": "voice-control.startUI"
-
+                "command": "voice-control.restart"
             }
         ]
     },

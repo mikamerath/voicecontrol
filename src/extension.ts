@@ -16,15 +16,20 @@ import { checkIfConfigurationChanged, getInterpreterFromSetting } from './common
 import { loadServerDefaults } from './common/setup';
 import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
-import { StringDictionary, commandNameToID } from './command-mapping';
+import { Console } from 'console';
+import { commandNameToID } from './command-mapping';
+
 
 let lsClient: LanguageClient | undefined;
+let uiController: UIController | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     // This is required to get server name and module. This should be
     // the first thing that we do in this extension.
     const serverInfo = loadServerDefaults();
     const serverName = serverInfo.name;
     const serverId = serverInfo.module;
+
+    uiController = new UIController();
 
     // Setup logging
     const outputChannel = createOutputChannel(serverName);
@@ -64,16 +69,40 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             traceVerbose(`Using interpreter from Python extension: ${interpreterDetails.path.join(' ')}`);
             lsClient = await restartServer(serverId, serverName, outputChannel, lsClient);
             lsClient?.start();
-            lsClient?.onNotification('custom/notification', async (message) => {
+            lsClient?.onNotification('custom/notification', (message) => {
                 traceLog('Received message from Python:', message);
-                vscode.commands.executeCommand(commandNameToID[message.content]).then(
-                    () => {
-                        traceLog(message.content + ' executed');
-                    },
-                    (err) => {
-                        traceError('Error executing ' + message.content + ' command:', err);
-                    },
-                );
+                //This message content can include both voice commands from the user and python server messages
+                switch (message.content)
+                {
+                    //PYTHON SERVER MESSAGES
+                    case 'wake':
+                        {
+                            if(uiController){
+                            uiController.waitForActivation();
+                            }
+
+                            break;
+                        }
+                    
+                    case 'listen':
+                        {
+                            if(uiController){
+                            uiController.listenForCommand();
+                            }
+                            break;
+                        }
+                    
+                    //TODO : This doesn't need to be the responsibility of extension.ts.
+                    //Instead let's organize so that the server determines whether a message is going to the frontend or not.
+                    //Commands are executed here.
+                    default:
+                        {
+                            //Execute command
+                            vscode.commands.executeCommand(commandNameToID[message.content]);
+                            uiController?.waitForActivation();
+                            break;
+                        }
+                }
             });
             return;
         }
@@ -98,10 +127,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         registerCommand(`${serverId}.restart`, async () => {
             await runServer();
         }),
-
-        registerCommand(`${serverId}.startUI`, () => {
-            startUI();
-        }),
     );
 
     setImmediate(async () => {
@@ -115,7 +140,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
     });
 
-    startUI();
 }
 
 export async function deactivate(): Promise<void> {
@@ -124,18 +148,30 @@ export async function deactivate(): Promise<void> {
     }
 }
 
-let statusBarItem: vscode.StatusBarItem;
-export function startUI() {
-    console.log('Starting UI');
-    statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+export class UIController{
+    private statusBarItem: vscode.StatusBarItem;
+    private tutorial = false;
 
-    // Show message in the status bar
-    statusBarItem.text = 'Voice Control : Waiting for activation word';
-    statusBarItem.show();
+    constructor()
+    {
+        this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    }
 
-    // Clear the status bar after a delay (e.g., 5 seconds)
-    //setTimeout(() => {
-    //statusBarItem.hide();
-    //}, 5000);
-    vscode.window.showInformationMessage('Voice Control will give you its status in the bottom left corner :)');
+    listenForCommand()
+    {
+        this.statusBarItem.text = 'Voice Control : Listening for voice command...';
+        this.statusBarItem.show();
+    }
+
+    waitForActivation()
+    {
+        if(this.tutorial)
+        {
+            vscode.window.showInformationMessage('Voice Control will give you its status in the bottom left corner :)');
+            this.tutorial = false;
+        }
+
+        this.statusBarItem.text = 'Voice Control : Waiting for activation word';
+        this.statusBarItem.show();
+    }
 }
