@@ -110,6 +110,7 @@ def listen_for_wake_word(
     )
 
     
+    LSP_SERVER.send_notification('custom/notification', {'content': 'wake'})
     log_to_output("Listening for wake word...")
     while True:
         for prediction in classifier(mic):
@@ -117,6 +118,7 @@ def listen_for_wake_word(
             if prediction["label"] == wake_word:
                 if prediction["score"] > prob_threshold:
                     log_to_output("Please say a command")
+                    LSP_SERVER.send_notification('custom/notification', {'content': 'listen'})
                     result = transcribe(chunk_length_s=3.0)
                     log_to_output("You said: " + result)
                     command = text2command.findSimilarPhrases(result)
@@ -124,6 +126,8 @@ def listen_for_wake_word(
                     LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
                     prediction["label"] = ""
                     # log_to_output("Listening for wake word...")
+                    LSP_SERVER.send_notification('custom/notification', {'content': 'wake'})
+
 
 # **********************************************************
 # Required Language Server Initialization and Exit handlers.
