@@ -1,7 +1,7 @@
 These instructions will be updated when we have our landing page on our first release
 
 # Windows Users
-1. Download the latest version of ffmpeg from this [link](https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip/) or from this [website](https://www.gyan.dev/ffmpeg/builds/). Scroll down to release builds and click on **ffmpeg-release-essentials.zip**
+1. Download the latest version of ffmpeg from this [link](https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip) or from this [website](https://www.gyan.dev/ffmpeg/builds/). Scroll down to release builds and click on **ffmpeg-release-essentials.zip**
 2. Create a folder in your C: drive called bin (or whatever you would like to call it)
 3. Extract the zipped folder. Inside, the ffmpeg-x.x.x-essentials_build\bin there should be three executables, ffmpeg.exe, ffplay.exe, and ffprobe.exe. Copy these into C:\bin
 4. Right click on This PC and select Properties
