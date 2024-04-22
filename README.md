@@ -18,14 +18,15 @@ A Python based extension that allows for the execution of VS Code commands by sp
 
 Once the extension has started, you should see that Voice Control is waiting for the activation word in the bottom left of the VS Code window. To start using the extension, speak the activation word (defaults to "go") to prepare the extension to listen to your command. 
 
-![Image showing the status bar on VS Code with an addition that says Voice Control: Waiting for activation word](images/WaitingForActivation.PNG "StatusBar")
+![Image showing the status bar on VS Code with an addition that says Voice Control: Waiting for activation word](https://github.com/mikamerath/voicecontrol/blob/main/images/WaitingForActivation.PNG?raw=true "StatusBar")
+
 
 Speak the name of the command you would like to execute. The default names of the commands are the ones listed when opening the command palette (CTRL+SHIFT+P or COMMAND+SHIFT+P). The command should execute and the status bar will notify that the extension is listening for the activation word again.
 
-![Image showing the status bar on VS Code with an addition that says Voice Control: Please say a command](images/Listening.PNG "ChangedStatusBar")
+![Image showing the status bar on VS Code with an addition that says Voice Control: Please say a command](https://github.com/mikamerath/voicecontrol/blob/main/images/Listening.PNG?raw=true "ChangedStatusBar")
 
 Here is a gif showing zooming out, deleting a line, and zooming out again, all without using keyboard input.
-![Gif showing the execution of delete line and undo commands](images/Running.gif "FullExecution")
+![Gif showing the execution of delete line and undo commands](https://github.com/mikamerath/voicecontrol/blob/main/images/Running.gif?raw=true "FullExecution")
 
 
 ## Features
