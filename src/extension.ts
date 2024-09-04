@@ -19,17 +19,43 @@ import { createOutputChannel, onDidChangeConfiguration, registerCommand } from '
 import { Console } from 'console';
 import { commandNameToID } from './command-mapping';
 
+import * as fs from 'fs';
+import * as path from 'path';
+
+const rootPath =
+    vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+        ? vscode.workspace.workspaceFolders[0].uri.fsPath
+        : undefined;
+
+let iconPathBlue = vscode.Uri.file('');
+let iconPathGreen = vscode.Uri.file('');
+let iconPathGrey = vscode.Uri.file('');
 
 let lsClient: LanguageClient | undefined;
 let uiController: UIController | undefined;
+
+let statusText: string = 'Voice Control is starting up...';
+let color: string = 'grey';
+
+let voiceControlStatusViewer: VoiceControlStatusViewer;
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     // This is required to get server name and module. This should be
     // the first thing that we do in this extension.
     const serverInfo = loadServerDefaults();
     const serverName = serverInfo.name;
     const serverId = serverInfo.module;
-
+    iconPathBlue = vscode.Uri.file(context.asAbsolutePath('images/blue-circle.png'));
+    iconPathGrey = vscode.Uri.file(context.asAbsolutePath('images/grey-circle.png'));
+    iconPathGreen = vscode.Uri.file(context.asAbsolutePath('images/green-circle.png'));
+    //Make an instance of uiController for this session
     uiController = new UIController();
+
+    //Get workspace root
+    voiceControlStatusViewer = new VoiceControlStatusViewer();
+    vscode.window.registerTreeDataProvider('VoiceControl', voiceControlStatusViewer);
+    //Set up treeview data provider to refresh based on the extension's current state
+    vscode.commands.registerCommand('VoiceControlStatusViewer.refresh', () => voiceControlStatusViewer.refresh());
 
     // Setup logging
     const outputChannel = createOutputChannel(serverName);
@@ -72,36 +98,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             lsClient?.onNotification('custom/notification', (message) => {
                 traceLog('Received message from Python:', message);
                 //This message content can include both voice commands from the user and python server messages
-                switch (message.content)
-                {
+                switch (message.content) {
                     //PYTHON SERVER MESSAGES
-                    case 'wake':
-                        {
-                            if(uiController){
+                    case 'wake': {
+                        if (uiController) {
                             uiController.waitForActivation();
-                            }
+                        }
 
-                            break;
-                        }
-                    
-                    case 'listen':
-                        {
-                            if(uiController){
+                        break;
+                    }
+
+                    case 'listen': {
+                        if (uiController) {
                             uiController.listenForCommand();
-                            }
-                            break;
                         }
-                    
+                        break;
+                    }
+
                     //TODO : This doesn't need to be the responsibility of extension.ts.
                     //Instead let's organize so that the server determines whether a message is going to the frontend or not.
                     //Commands are executed here.
-                    default:
-                        {
-                            //Execute command
-                            vscode.commands.executeCommand(commandNameToID[message.content]);
-                            uiController?.waitForActivation();
-                            break;
-                        }
+                    default: {
+                        //Execute command
+                        vscode.commands.executeCommand(commandNameToID[message.content]);
+                        uiController?.waitForActivation();
+                        break;
+                    }
                 }
             });
             return;
@@ -139,7 +161,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await runServer();
         }
     });
-
 }
 
 export async function deactivate(): Promise<void> {
@@ -148,30 +169,88 @@ export async function deactivate(): Promise<void> {
     }
 }
 
-export class UIController{
+class UIController {
     private statusBarItem: vscode.StatusBarItem;
-    private tutorial = false;
+    private tutorial = true;
 
-    constructor()
-    {
+    constructor() {
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     }
 
-    listenForCommand()
-    {
-        this.statusBarItem.text = 'Voice Control : Listening for voice command...';
-        this.statusBarItem.show();
-    }
-
-    waitForActivation()
-    {
-        if(this.tutorial)
-        {
+    waitForActivation() {
+        if (this.tutorial) {
             vscode.window.showInformationMessage('Voice Control will give you its status in the bottom left corner :)');
-            this.tutorial = false;
         }
 
-        this.statusBarItem.text = 'Voice Control : Waiting for activation word';
+        statusText = 'Voice Control : Waiting for activation word.';
+        color = 'blue';
+        this.statusBarItem.text = '$(mic)' + statusText;
         this.statusBarItem.show();
+
+        voiceControlStatusViewer.refresh();
+    }
+
+    listenForCommand() {
+        if (this.tutorial) {
+            vscode.window.showInformationMessage('Speak your desired command now and Voice Control will execute it.');
+        }
+
+        statusText = 'Voice Control : Listening for voice command...';
+        color = 'green';
+        this.statusBarItem.text = '$(sync~spin)' + statusText;
+        this.statusBarItem.show();
+
+        this.tutorial = false;
+
+        voiceControlStatusViewer.refresh();
+    }
+}
+
+export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.TreeItem> {
+    private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined | null | void> =
+        new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
+    readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> =
+        this._onDidChangeTreeData.event;
+
+    private newTreeItem: vscode.TreeItem;
+
+    constructor() {
+        this.newTreeItem = new vscode.TreeItem(statusText, vscode.TreeItemCollapsibleState.Expanded);
+        this.newTreeItem.tooltip = 'Displays a status update for the Voice Control extension.';
+        this.newTreeItem.iconPath = iconPathBlue; // Assign the icon path to the tree item
+    }
+
+    getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
+        this.newTreeItem.label = statusText;
+        this.updateColor();
+        return element;
+    }
+
+    getChildren(element?: vscode.TreeItem): vscode.ProviderResult<vscode.TreeItem[]> {
+        this.newTreeItem.label = statusText;
+        this.updateColor();
+        if (!element) {
+            return [this.newTreeItem];
+        }
+
+        return [];
+    }
+
+    updateColor() {
+        switch (color) {
+            case 'blue':
+                this.newTreeItem.iconPath = iconPathBlue;
+                break;
+            case 'grey':
+                this.newTreeItem.iconPath = iconPathGrey;
+                break;
+            case 'green':
+                this.newTreeItem.iconPath = iconPathGreen;
+                break;
+        }
+    }
+
+    refresh(): void {
+        this._onDidChangeTreeData.fire();
     }
 }

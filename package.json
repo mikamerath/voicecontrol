@@ -61,6 +61,14 @@
         "vsce-package": "vsce package -o voice-control.vsix"
     },
     "contributes": {
+        "views":{
+            "explorer": [
+                {
+                  "id": "VoiceControl",
+                  "name": "Voice Control"
+                }
+            ]
+        },
         "configuration": {
             "properties": {
                 "voice-control.args": {
