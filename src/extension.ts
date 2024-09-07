@@ -39,6 +39,21 @@ let color: string = 'grey';
 
 let voiceControlStatusViewer: VoiceControlStatusViewer;
 
+let awaitingCommandArgument: boolean = false;
+let currentMultistepCommand: string = '';
+// Command handler map
+const commandHandlers: { [key: string]: (message: any) => void } = {
+    'Preferences: Color Theme': handleColorThemeCommand,
+    'Go to Line/Column...': handleGoToLine,
+    'Go to File...': handleGoToFile,
+    wake: (message: any) => {
+        uiController?.waitForActivation();
+    },
+    listen: (message: any) => {
+        uiController?.listenForCommand();
+    },
+    // Add other commands here
+};
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     // This is required to get server name and module. This should be
     // the first thing that we do in this extension.
@@ -98,32 +113,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             lsClient?.onNotification('custom/notification', (message) => {
                 traceLog('Received message from Python:', message);
                 //This message content can include both voice commands from the user and python server messages
-                switch (message.content) {
-                    //PYTHON SERVER MESSAGES
-                    case 'wake': {
-                        if (uiController) {
-                            uiController.waitForActivation();
-                        }
-
-                        break;
-                    }
-
-                    case 'listen': {
-                        if (uiController) {
-                            uiController.listenForCommand();
-                        }
-                        break;
-                    }
-
-                    //TODO : This doesn't need to be the responsibility of extension.ts.
-                    //Instead let's organize so that the server determines whether a message is going to the frontend or not.
-                    //Commands are executed here.
-                    default: {
-                        //Execute command
-                        vscode.commands.executeCommand(commandNameToID[message.content]);
-                        uiController?.waitForActivation();
-                        break;
-                    }
+                //Execute command
+                if (!handleMessage(message.content)) {
+                    vscode.commands.executeCommand(commandNameToID[message.content]);
                 }
             });
             return;
@@ -253,4 +245,69 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
     refresh(): void {
         this._onDidChangeTreeData.fire();
     }
+}
+function setMultiStepCommandState(command: string) {
+    currentMultistepCommand = command;
+    awaitingCommandArgument = true;
+    uiController?.waitForActivation();
+}
+
+function resetMultiStepCommandState() {
+    awaitingCommandArgument = false;
+    currentMultistepCommand = '';
+    uiController?.waitForActivation();
+}
+function handleColorThemeCommand(message: any) {
+    if (awaitingCommandArgument) {
+        const config = vscode.workspace.getConfiguration();
+        config.update('workbench.colorTheme', message, vscode.ConfigurationTarget.Global);
+        vscode.commands.executeCommand('workbench.action.closeQuickOpen');
+        resetMultiStepCommandState();
+    } else {
+        vscode.commands.executeCommand('workbench.action.selectTheme');
+        setMultiStepCommandState(message);
+    }
+}
+function handleGoToLine(message: any) {
+    if (awaitingCommandArgument) {
+        //Closing it here because it's already open to let the user know they need to say a number
+        vscode.commands.executeCommand('workbench.action.closeQuickOpen');
+        vscode.commands.executeCommand('workbench.action.quickOpen', ':' + message);
+        vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
+        resetMultiStepCommandState();
+    } else {
+        vscode.commands.executeCommand(commandNameToID[message]);
+        setMultiStepCommandState(message);
+    }
+}
+function handleGoToFile(message: any) {
+    if (awaitingCommandArgument) {
+        //Closing it here because it's already open since we want the user to see the list of files
+        vscode.commands.executeCommand('workbench.action.closeQuickOpen');
+        // Inputs the chosen file name and selects the top option
+        vscode.commands.executeCommand('workbench.action.quickOpen', message);
+        vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
+        resetMultiStepCommandState();
+    } else {
+        vscode.commands.executeCommand(commandNameToID[message]);
+        setMultiStepCommandState(message);
+    }
+}
+function handleMessage(message: any): Boolean {
+    if (awaitingCommandArgument && !commandHandlers[message]) {
+        console.log('accepting message as parameter');
+        if (commandHandlers[currentMultistepCommand]) {
+            commandHandlers[currentMultistepCommand](message);
+            return true;
+        }
+    } else {
+        if (commandHandlers[message]) {
+            commandHandlers[message](message);
+            return true;
+        } else {
+            console.log('Unknown command', message);
+            return false;
+        }
+    }
+    return false;
 }
