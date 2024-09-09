@@ -3,6 +3,7 @@
 """Implementation of tool support over LSP."""
 from __future__ import annotations
 import asyncio
+
 # import websockets
 
 import copy
@@ -14,6 +15,7 @@ import sys
 import sysconfig
 import traceback
 from typing import Any, Optional, Dict, Sequence
+
 
 # **********************************************************
 # Update sys.path before importing any bundled libraries.
@@ -54,23 +56,16 @@ LSP_SERVER = server.LanguageServer(
 # **********************************************************
 # Speech to text and text to command
 # **********************************************************
-from transformers import pipeline
+from transformers import pipeline, WhisperTokenizer, WhisperFeatureExtractor
 from transformers.pipelines.audio_utils import ffmpeg_microphone_live
 import torch
 
 import text2command
-
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-classifier = pipeline(
-    "audio-classification", model="MIT/ast-finetuned-speech-commands-v2", device=device
-)
-transcriber = pipeline(
-    "automatic-speech-recognition", model="openai/whisper-base", device=device
-)
+import commands
 
 # Uncomment this line to see all of the possible wake words
 # print(classifier.model.config.id2label)
+
 
 # Transcribes speech and converts it to text
 def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
@@ -82,7 +77,13 @@ def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
         stream_chunk_s=stream_chunk_s,
     )
 
-    for item in transcriber(mic, generate_kwargs={"max_new_tokens": 128}):
+    for item in transcriber(
+        mic,
+        generate_kwargs={
+            "max_new_tokens": 128,
+            "forced_decoder_ids": forced_decoder_ids,
+        },
+    ):
         # Uncomment to see the prediction as it happens
         # sys.stdout.write("\033[K")
         # print(item["text"], end="\r")
@@ -91,6 +92,7 @@ def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
 
     log_to_output("Finished transcribing")
     return item["text"]
+
 
 # Listens for wake word (go) and calls transcribe
 def listen_for_wake_word(
@@ -109,8 +111,7 @@ def listen_for_wake_word(
         stream_chunk_s=stream_chunk_s,
     )
 
-    
-    LSP_SERVER.send_notification('custom/notification', {'content': 'wake'})
+    LSP_SERVER.send_notification("custom/notification", {"content": "wake"})
     log_to_output("Listening for wake word...")
     while True:
         for prediction in classifier(mic):
@@ -118,15 +119,21 @@ def listen_for_wake_word(
             if prediction["label"] == wake_word:
                 if prediction["score"] > prob_threshold:
                     log_to_output("Please say a command")
-                    LSP_SERVER.send_notification('custom/notification', {'content': 'listen'})
+                    LSP_SERVER.send_notification(
+                        "custom/notification", {"content": "listen"}
+                    )
                     result = transcribe(chunk_length_s=3.0)
                     log_to_output("You said: " + result)
-                    command = text2command.findSimilarPhrases(result)
+                    command = text2command.findSimilarPhrases(result, locale)
                     log_to_output(command[0])
-                    LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
+                    LSP_SERVER.send_notification(
+                        "custom/notification", {"content": command[0]}
+                    )
                     prediction["label"] = ""
                     # log_to_output("Listening for wake word...")
-                    LSP_SERVER.send_notification('custom/notification', {'content': 'wake'})
+                    LSP_SERVER.send_notification(
+                        "custom/notification", {"content": "wake"}
+                    )
 
 
 # **********************************************************
@@ -143,6 +150,7 @@ def initialize(params: lsp.InitializeParams) -> None:
     GLOBAL_SETTINGS.update(**params.initialization_options.get("globalSettings", {}))
 
     settings = params.initialization_options["settings"]
+    log_to_output(f"The current locale for VS Code is: {params.locale}")
     _update_workspace_settings(settings)
     log_to_output(
         f"Settings used to run Server:\r\n{json.dumps(settings, indent=4, ensure_ascii=False)}\r\n"
@@ -151,13 +159,41 @@ def initialize(params: lsp.InitializeParams) -> None:
         f"Global settings:\r\n{json.dumps(GLOBAL_SETTINGS, indent=4, ensure_ascii=False)}\r\n"
     )
 
+    global locale
+    locale = params.locale
+    log_to_output(f"Using the language {commands.convert_locale_language[locale]}")
+
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    global classifier
+    classifier = pipeline(
+        "audio-classification",
+        model="MIT/ast-finetuned-speech-commands-v2",
+        device=device,
+    )
+    global tokenizer
+    tokenizer = WhisperTokenizer.from_pretrained(
+        "openai/whisper-base",
+        language=commands.convert_locale_language[locale],
+        task="transcribe",
+    )
+    global transcriber
+    transcriber = pipeline(
+        "automatic-speech-recognition",
+        model="openai/whisper-base",
+        device=device,
+        tokenizer=tokenizer,
+    )
+    global forced_decoder_ids
+    forced_decoder_ids = tokenizer.get_decoder_prompt_ids(
+        language=commands.convert_locale_language[locale], task="transcribe"
+    )
+
 
 @LSP_SERVER.feature(lsp.INITIALIZED)
 def initialized(params: lsp.InitializedParams) -> None:
     """Handler for initialized"""
     listen_for_wake_word()
     log_error("We should never get here")
-
 
 
 # **********************************************************
@@ -173,6 +209,7 @@ def on_exit(_params: Optional[Any] = None) -> None:
 def on_shutdown(_params: Optional[Any] = None) -> None:
     """Handle clean up on shutdown."""
     jsonrpc.shutdown_json_rpc()
+
 
 def _get_global_defaults():
     return {
@@ -236,4 +273,3 @@ def log_always(message: str) -> None:
 # *****************************************************
 if __name__ == "__main__":
     LSP_SERVER.start_io()
-    
