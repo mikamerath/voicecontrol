@@ -18,6 +18,7 @@ import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
 import { Console } from 'console';
 import { commandNameToID } from './command-mapping';
+import { commandNameToIDIta } from './command-mapping-ita';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -38,6 +39,8 @@ let statusText: string = 'Voice Control is starting up...';
 let color: string = 'grey';
 
 let voiceControlStatusViewer: VoiceControlStatusViewer;
+
+let locale = vscode.env.language;
 
 let awaitingCommandArgument: boolean = false;
 let currentMultistepCommand: string = '';
@@ -115,7 +118,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 //This message content can include both voice commands from the user and python server messages
                 //Execute command
                 if (!handleMessage(message.content)) {
-                    vscode.commands.executeCommand(commandNameToID[message.content]);
+                    if (locale == "it") {
+                        vscode.commands.executeCommand(commandNameToIDIta[message.content]);
+                    }
+                    else {
+                        vscode.commands.executeCommand(commandNameToID[message.content]);
+                    }
                 }
             });
             return;
