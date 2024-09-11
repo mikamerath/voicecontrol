@@ -3,6 +3,7 @@ export interface StringDictionary {
 }
 
 export let commandNameToID: StringDictionary = {
+    'Renaming Command: Final': 'VoiceControl.renamedCommandInfo',
     'Accept Inline Completion': 'editor.action.accessibleViewAcceptInlineCompletion',
     'Accept Inline Edit': 'editor.action.inlineEdit.accept',
     'Accept Inline Suggestion': 'editor.action.inlineSuggest.commit',

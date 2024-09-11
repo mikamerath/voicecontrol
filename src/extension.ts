@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { LanguageClient, Message } from 'vscode-languageclient/node';
 import { registerLogger, traceError, traceLog, traceVerbose } from './common/log/logging';
 import {
     checkVersion,
@@ -50,6 +50,8 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
     'Preferences: Color Theme': handleColorThemeCommand,
     'Go to Line/Column...': handleGoToLine,
     'Go to File...': handleGoToFile,
+    'Rename Command...': handleRenameCommand,
+    'Rename Command: show chosen command': handleShowChosenCommand,
     wake: (message: any) => {
         uiController?.waitForActivation();
     },
@@ -69,6 +71,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     iconPathGreen = vscode.Uri.file(context.asAbsolutePath('images/green-circle.png'));
     //Make an instance of uiController for this session
     uiController = new UIController();
+
+    // Register the renaming custom command
+    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', (command, alias) => {
+        vscode.window.showInformationMessage('Renamed command ' + command + ' to ' + alias);
+    });
 
     //Get workspace root
     voiceControlStatusViewer = new VoiceControlStatusViewer();
@@ -92,6 +99,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.env.onDidChangeLogLevel(async (e) => {
             await changeLogLevel(outputChannel.logLevel, e);
         }),
+        renamedCommandInfo,
     );
 
     // Log Server information
@@ -119,10 +127,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 //This message content can include both voice commands from the user and python server messages
                 //Execute command
                 if (!handleMessage(message.content)) {
-                    if (locale == 'it') {
-                        vscode.commands.executeCommand(commandNameToIDIta[message.content]);
+                    if (message.content == 'Command not found') {
+                        handleNoCommandFound(message.parameters);
+                    } else if (message.content == 'Renaming Command: Final') {
+                        handleRenamingCommandFinal(message, locale);
+                    } else if (message.content == 'Command not renamed') {
+                        handleCommandNotRenamed(message.parameters);
                     } else {
-                        vscode.commands.executeCommand(commandNameToID[message.content]);
+                        if (locale == 'it') {
+                            vscode.commands.executeCommand(commandNameToIDIta[message.content]);
+                        } else {
+                            vscode.commands.executeCommand(commandNameToID[message.content]);
+                        }
                     }
                 }
             });
@@ -369,4 +385,35 @@ function findMostSimilarTheme(themeName: string, themeList: string[], threshold:
         return null;
     }
     return closestTheme;
+}
+
+function handleRenameCommand() {
+    vscode.window.showInformationMessage('Speak activation word and then which command you want to rename.');
+    uiController?.waitForActivation();
+}
+
+function handleShowChosenCommand() {
+    vscode.window.showInformationMessage('Speak activation word and then the alias for the command.');
+    uiController?.waitForActivation();
+}
+
+function handleRenamingCommandFinal(message: any, locale: string) {
+    const command = message.parameters[0];
+    const alias = message.parameters[1];
+    if (locale == 'it') {
+        vscode.commands.executeCommand(commandNameToIDIta[message.content], command, alias);
+    } else {
+        vscode.commands.executeCommand(commandNameToID[message.content], command, alias);
+    }
+    uiController?.waitForActivation();
+}
+
+function handleNoCommandFound(parameters: string) {
+    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not executed.');
+    uiController?.waitForActivation();
+}
+
+function handleCommandNotRenamed(parameters: string) {
+    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not renamed.');
+    uiController?.waitForActivation();
 }

@@ -3,6 +3,7 @@ export interface StringDictionary {
 }
 
 export let commandNameToIDIta: StringDictionary = {
+    'Renaming Command: Final': 'VoiceControl.renamedCommandInfo',
     'Accept Inline Edit': 'editor.action.inlineEdit.accept',
     'Accetta completamento inline': 'editor.action.accessibleViewAcceptInlineCompletion',
     'Accetta modifica inline': 'editor.action.inlineEdits.accept',

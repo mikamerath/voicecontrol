@@ -126,9 +126,12 @@ def listen_for_wake_word(
                     log_to_output("You said: " + result)
                     command = text2command.findSimilarPhrases(result, locale)
                     log_to_output(command[0])
-                    LSP_SERVER.send_notification(
-                        "custom/notification", {"content": command[0]}
-                    )
+                    if(command[0] == "Command not found" or command[0] == "Command not renamed"):
+                        LSP_SERVER.send_notification('custom/notification', {'content': command[0], 'parameters': command[1]})
+                    elif(command[0] == "Renaming Command: Final"):
+                        LSP_SERVER.send_notification('custom/notification', {'content': command[0], 'parameters': command[1:]})
+                    else:
+                        LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
                     prediction["label"] = ""
                     # log_to_output("Listening for wake word...")
                     LSP_SERVER.send_notification(
