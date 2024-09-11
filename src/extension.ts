@@ -19,6 +19,7 @@ import { createOutputChannel, onDidChangeConfiguration, registerCommand } from '
 import { Console } from 'console';
 import { commandNameToID } from './command-mapping';
 import { commandNameToIDIta } from './command-mapping-ita';
+import availableThemes from './color-themes';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -118,10 +119,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 //This message content can include both voice commands from the user and python server messages
                 //Execute command
                 if (!handleMessage(message.content)) {
-                    if (locale == "it") {
+                    if (locale == 'it') {
                         vscode.commands.executeCommand(commandNameToIDIta[message.content]);
-                    }
-                    else {
+                    } else {
                         vscode.commands.executeCommand(commandNameToID[message.content]);
                     }
                 }
@@ -268,7 +268,13 @@ function resetMultiStepCommandState() {
 function handleColorThemeCommand(message: any) {
     if (awaitingCommandArgument) {
         const config = vscode.workspace.getConfiguration();
-        config.update('workbench.colorTheme', message, vscode.ConfigurationTarget.Global);
+        // Ensures the theme selected by the user is in the right format
+        const selectedTheme = findMostSimilarTheme(message, availableThemes);
+        if (selectedTheme) {
+            config.update('workbench.colorTheme', selectedTheme, vscode.ConfigurationTarget.Global);
+        } else {
+            vscode.window.showInformationMessage('Invalid theme selected.');
+        }
         vscode.commands.executeCommand('workbench.action.closeQuickOpen');
         resetMultiStepCommandState();
     } else {
@@ -276,6 +282,7 @@ function handleColorThemeCommand(message: any) {
         setMultiStepCommandState(message);
     }
 }
+
 function handleGoToLine(message: any) {
     if (awaitingCommandArgument) {
         //Closing it here because it's already open to let the user know they need to say a number
@@ -318,4 +325,48 @@ function handleMessage(message: any): Boolean {
         }
     }
     return false;
+}
+
+//A commonly used method for comparing string similarity
+function levenshtein(a: string, b: string): number {
+    const matrix: number[][] = [];
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    // Fill in the rest of the matrix
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+// Uses the levenshtein function to compare the message with each theme and return the closest match
+function findMostSimilarTheme(themeName: string, themeList: string[], threshold: number = 3): string | null {
+    let closestTheme: string | null = null;
+    let minDistance = Infinity;
+
+    for (const theme of themeList) {
+        const distance = levenshtein(themeName, theme);
+        if (distance < minDistance) {
+            closestTheme = theme;
+            minDistance = distance;
+        }
+    }
+    console.log(minDistance);
+    // If the minimum distance exceeds the threshold, consider it too different
+    if (minDistance > threshold) {
+        return null;
+    }
+    return closestTheme;
 }
