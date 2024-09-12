@@ -137,6 +137,11 @@
                 "title":"Restart Server",
                 "category": "VoiceControl",
                 "command": "voice-control.restart"
+            },
+            {
+                "command": "VoiceControl.renamedCommandInfo",
+                "title": "Renamed command info",
+                "category": "VoiceControl"
             }
         ]
     },

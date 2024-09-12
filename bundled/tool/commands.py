@@ -18,6 +18,7 @@ convert_locale_language = {
 }
 
 commands = [
+    "Rename Command...",
     "Accept Inline Completion",
     "Accept Inline Edit",
     "Accept Inline Suggestion",
@@ -1665,6 +1666,7 @@ commands = [
 ]
 
 commands_italian = [
+    "Rinomina Comando...",
     "Accept Inline Edit",
     "Accetta completamento inline",
     "Accetta modifica inline",
