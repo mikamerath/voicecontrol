@@ -1635,6 +1635,7 @@ commands = [
     "View: Two Rows Right Editor Layout",
     "View: Unlock Editor Group",
     "Voice Assistant: Focus on Voice Assistant View",
+    "Voice Control: Show Remapping Window",
     "Welcome: Open Walkthrough...",
     "Workspaces: Add Folder to Workspace...",
     "Workspaces: Configure Workspace Trust Settings",

@@ -45,6 +45,9 @@ let locale = vscode.env.language;
 
 let awaitingCommandArgument: boolean = false;
 let currentMultistepCommand: string = '';
+
+let renamingPanel: vscode.WebviewPanel | undefined;
+
 // Command handler map
 const commandHandlers: { [key: string]: (message: any) => void } = {
     'Preferences: Color Theme': handleColorThemeCommand,
@@ -66,6 +69,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const serverInfo = loadServerDefaults();
     const serverName = serverInfo.name;
     const serverId = serverInfo.module;
+
+    updateRemappingWindow(context);
+
     iconPathBlue = vscode.Uri.file(context.asAbsolutePath('images/blue-circle.png'));
     iconPathGrey = vscode.Uri.file(context.asAbsolutePath('images/grey-circle.png'));
     iconPathGreen = vscode.Uri.file(context.asAbsolutePath('images/green-circle.png'));
@@ -130,7 +136,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     if (message.content == 'Command not found') {
                         handleNoCommandFound(message.parameters);
                     } else if (message.content == 'Renaming Command: Final') {
-                        handleRenamingCommandFinal(message, locale);
+                        handleRenamingCommandFinal(message, locale, context);
                     } else if (message.content == 'Command not renamed') {
                         handleCommandNotRenamed(message.parameters);
                     } else {
@@ -270,6 +276,83 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
         this._onDidChangeTreeData.fire();
     }
 }
+//A commonly used method for comparing string similarity
+function levenshtein(a: string, b: string): number {
+    const matrix: number[][] = [];
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    // Fill in the rest of the matrix
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+// Uses the levenshtein function to compare the message with each theme and return the closest match
+function findMostSimilarTheme(themeName: string, themeList: string[], threshold: number = 3): string | null {
+    let closestTheme: string | null = null;
+    let minDistance = Infinity;
+
+    for (const theme of themeList) {
+        const distance = levenshtein(themeName, theme);
+        if (distance < minDistance) {
+            closestTheme = theme;
+            minDistance = distance;
+        }
+    }
+    console.log(minDistance);
+    // If the minimum distance exceeds the threshold, consider it too different
+    if (minDistance > threshold) {
+        return null;
+    }
+    return closestTheme;
+}
+
+function handleRenameCommand() {
+    vscode.window.showInformationMessage('Speak activation word and then which command you want to rename.');
+    uiController?.waitForActivation();
+}
+
+function handleShowChosenCommand() {
+    vscode.window.showInformationMessage('Speak activation word and then the alias for the command.');
+    uiController?.waitForActivation();
+}
+
+function handleRenamingCommandFinal(message: any, locale: string, context: vscode.ExtensionContext) {
+    const command = message.parameters[0];
+    const alias = message.parameters[1];
+    if (locale == 'it') {
+        vscode.commands.executeCommand(commandNameToIDIta[message.content], command, alias);
+    } else {
+        vscode.commands.executeCommand(commandNameToID[message.content], command, alias);
+    }
+
+    updateRemappingWindow(context);
+    uiController?.waitForActivation();
+}
+
+function handleNoCommandFound(parameters: string) {
+    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not executed.');
+    uiController?.waitForActivation();
+}
+
+function handleCommandNotRenamed(parameters: string) {
+    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not renamed.');
+    uiController?.waitForActivation();
+}
+
 function setMultiStepCommandState(command: string) {
     currentMultistepCommand = command;
     awaitingCommandArgument = true;
@@ -343,77 +426,166 @@ function handleMessage(message: any): Boolean {
     return false;
 }
 
-//A commonly used method for comparing string similarity
-function levenshtein(a: string, b: string): number {
-    const matrix: number[][] = [];
-    for (let i = 0; i <= b.length; i++) {
-        matrix[i] = [i];
-    }
-    for (let j = 0; j <= a.length; j++) {
-        matrix[0][j] = j;
-    }
+function updateRemappingWindow(context: vscode.ExtensionContext) {
+    const filePath = context.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+    const pathExists = fs.existsSync(filePath);
 
-    // Fill in the rest of the matrix
-    for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-            if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                matrix[i][j] = matrix[i - 1][j - 1];
+    if (!renamingPanel) {
+        let disposable = vscode.commands.registerCommand('VoiceControl.showRemappingWindow', () => {
+            renamingPanel = vscode.window.createWebviewPanel(
+                'remappingMenu', // Identifies the type of the webview. Used internally
+                'Remap Voice Bindings', // Title of the panel displayed to the user
+                vscode.ViewColumn.One, // Editor column to show the new webview panel in.
+                {
+                    enableScripts: true, // Enable scripts in the webview
+                },
+            );
+
+            // And set its HTML content
+            if (pathExists) {
+                renamingPanel.webview.html = getVCRemappingContent(context);
             } else {
-                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+                renamingPanel.webview.html = getVCRemappingContentNoBindings(context);
             }
-        }
-    }
+        });
 
-    return matrix[b.length][a.length];
-}
-
-// Uses the levenshtein function to compare the message with each theme and return the closest match
-function findMostSimilarTheme(themeName: string, themeList: string[], threshold: number = 3): string | null {
-    let closestTheme: string | null = null;
-    let minDistance = Infinity;
-
-    for (const theme of themeList) {
-        const distance = levenshtein(themeName, theme);
-        if (distance < minDistance) {
-            closestTheme = theme;
-            minDistance = distance;
-        }
-    }
-    console.log(minDistance);
-    // If the minimum distance exceeds the threshold, consider it too different
-    if (minDistance > threshold) {
-        return null;
-    }
-    return closestTheme;
-}
-
-function handleRenameCommand() {
-    vscode.window.showInformationMessage('Speak activation word and then which command you want to rename.');
-    uiController?.waitForActivation();
-}
-
-function handleShowChosenCommand() {
-    vscode.window.showInformationMessage('Speak activation word and then the alias for the command.');
-    uiController?.waitForActivation();
-}
-
-function handleRenamingCommandFinal(message: any, locale: string) {
-    const command = message.parameters[0];
-    const alias = message.parameters[1];
-    if (locale == 'it') {
-        vscode.commands.executeCommand(commandNameToIDIta[message.content], command, alias);
+        context.subscriptions.push(disposable);
     } else {
-        vscode.commands.executeCommand(commandNameToID[message.content], command, alias);
+        if (pathExists) {
+            renamingPanel.webview.html = getVCRemappingContent(context);
+        } else {
+            renamingPanel.webview.html = getVCRemappingContentNoBindings(context);
+        }
     }
-    uiController?.waitForActivation();
 }
 
-function handleNoCommandFound(parameters: string) {
-    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not executed.');
-    uiController?.waitForActivation();
+function getVCRemappingContentNoBindings(context: vscode.ExtensionContext) {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Remap</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Aligns near the top */
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e; /* VSCode dark background */
+            color: #d4d4d4; /* Light grey text */
+        }
+        .message-box {
+            margin-top: 100px; /* Adjusts vertical position */
+            text-align: center;
+            background-color: #252526; /* Slightly lighter dark background */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            border: 1px solid #3c3c3c; /* Border similar to VSCode panels */
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #569cd6; /* Light blue to match VSCode dark theme highlights */
+        }
+        p {
+            font-size: 16px;
+            color: #cccccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="message-box">
+        <h1>No Command Remapped</h1>
+        <p>Remap at least one command to see your changes listed here.</p>
+    </div>
+</body>
+</html>
+
+    `;
 }
 
-function handleCommandNotRenamed(parameters: string) {
-    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not renamed.');
-    uiController?.waitForActivation();
+function getVCRemappingContent(context: vscode.ExtensionContext) {
+    let originalCommands = [''];
+    let renamedCommands = [''];
+
+    originalCommands.pop();
+    renamedCommands.pop();
+
+    const filePath = context.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+
+    const rawData = fs.readFileSync(filePath, 'utf8');
+    let parsedData = JSON.parse(rawData);
+
+    const parsedCommands = parsedData.commands;
+
+    let i = 0;
+    for (const parsedCommand in parsedCommands) {
+        if (parsedCommands.hasOwnProperty(parsedCommand)) {
+            const value = parsedCommands[parsedCommand];
+            //append to original and renamed
+            originalCommands.push(value);
+            renamedCommands.push(parsedCommand);
+            i += 1;
+        }
+    }
+
+    let parsedCommandList = '';
+
+    for (let i = 0; i < originalCommands.length; i++) {
+        parsedCommandList +=
+            `<div class="menu-item">
+    <span>` +
+            originalCommands[i] +
+            `</span>
+    <span>= : ` +
+            renamedCommands[i] +
+            `</span>
+    </div>
+    </body>
+    </html>
+    `;
+    }
+
+    //TODO : Some of the text in here will need to be translated for each locale
+    return (
+        `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Remapping Window</title>
+                <style>
+                    body {
+                        font-family: sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .menu-item {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 10px;
+                        border-bottom: 1px solid #ccc;
+                    }
+                    .menu-item:hover {
+                        background-color: #262626;
+                    }
+                    .keybinding {
+                        background-color: #223c54;
+                        padding: 5px 10px;
+                        border-radius: 3px;
+                        cursor: pointer;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1> Voice Command Map</h1>
+        ` + parsedCommandList
+    );
 }

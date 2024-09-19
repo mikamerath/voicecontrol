@@ -1638,6 +1638,7 @@ export let commandNameToID: StringDictionary = {
     'View: Two Rows Right Editor Layout': 'workbench.action.editorLayoutTwoRowsRight',
     'View: Unlock Editor Group': 'workbench.action.unlockEditorGroup',
     'Voice Assistant: Focus on Voice Assistant View': 'dashboard.focus',
+    'Voice Control: Show Remapping Window': 'VoiceControl.showRemappingWindow',
     'Welcome: Open Walkthrough...': 'welcome.showAllWalkthroughs',
     'Workspaces: Add Folder to Workspace...': 'workbench.action.addRootFolder',
     'Workspaces: Configure Workspace Trust Settings': 'workbench.trust.configure',

@@ -8,6 +8,7 @@ PythonEnvironment
 .vs/
 .nox/
 bundled/libs/
+bundled/tool/renaming.json
 **/__pycache__
 **/.pytest_cache
 **/.vs
