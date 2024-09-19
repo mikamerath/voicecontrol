@@ -79,11 +79,16 @@ def __searchForAlias(text):
         command = aliases[cleaned_text]
         return command
     else:
-        return ""
+        cleaned_text += "..."
+        if cleaned_text in aliases:
+            command = aliases[cleaned_text]
+            return command
+        else:
+            return ""
 
 
 def renameCommand(finalCommands, commands_to_use: string):
-    command = finalCommands[1]
+    command = str(finalCommands[1])
     processedText = set(__preprocessText(command))
     alias = finalCommands[2].title()
      # Find the command if it exists.
@@ -91,6 +96,8 @@ def renameCommand(finalCommands, commands_to_use: string):
     command = ""
     if len(similar_commands) and similar_commands[0] != "Command not found":
         command = similar_commands[0]
+        if "..." in command:
+            alias += "..."
         # Add alias to file
         extension_path = os.path.dirname(__file__)  # This assumes the script is in the `src` directory
         path = os.path.join(extension_path, 'renaming.json')
@@ -193,8 +200,6 @@ def findSimilarPhrases(text, locale):
                 finalCommands.append("Renaming Command: Final")
                 finalCommands.append(renamingInputs[0])
                 finalCommands.append(text)
-                isMultiStep = False
-                isRenamingCommand = False
                 commandAndAlias = renameCommand(finalCommands, commands_to_use)
                 if commandAndAlias[0] == "Command not found":
                     finalCommands[0] = "Command not renamed"
@@ -203,6 +208,8 @@ def findSimilarPhrases(text, locale):
                     finalCommands[1] = commandAndAlias[0]
                     finalCommands[2] = commandAndAlias[1]
                 renamingInputs.clear()
+                isMultiStep = False
+                isRenamingCommand = False
             return finalCommands
         text = text.lstrip()
         text = text.translate(str.maketrans("", "", string.punctuation))
@@ -215,6 +222,11 @@ def findSimilarPhrases(text, locale):
     command_from_alias = __searchForAlias(text)
     if command_from_alias:
         finalCommands.append(command_from_alias)
+        # Check if this is a renaming command
+        if(finalCommands.__len__() > 0 and (finalCommands[0] == "Rename Command..." or finalCommands[0] == "Rinomina Comando...")):
+            isRenamingCommand = True
+        # Check if this is a multi-step command
+        __setMultiStep(finalCommands[0])
     else:
         finalCommands = searchForCommands(processedText, commands_to_use)
     if finalCommands[0] == 'Command not found':
