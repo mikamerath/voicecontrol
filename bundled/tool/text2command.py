@@ -21,7 +21,6 @@ renamingInputs = []
 """This helper method takes the text (text produced from the speech to text model)
 and processes it to get rid of extra characters like punctuation."""
 
-
 def __preprocessText(text):
     # Break the text down into words.
     words = word_tokenize(text.lower())
@@ -70,6 +69,13 @@ def __setMultiStep(text):
 def __searchForAlias(text):
     extension_path = os.path.dirname(__file__)  # This assumes the script is in the `src` directory
     path = os.path.join(extension_path, 'renaming.json')
+
+    if not os.path.exists(path):
+        default_data = createDefaultRenamingFile()
+
+        with open(path, 'w') as renaming_file:
+            json.dump(default_data, renaming_file, indent=2)
+
     with open(path, 'r') as renaming_file:
         data = json.load(renaming_file)
     aliases = data.get('aliases', {})
@@ -86,7 +92,6 @@ def __searchForAlias(text):
         else:
             return ""
 
-
 def renameCommand(finalCommands, commands_to_use: string):
     command = str(finalCommands[1])
     processedText = set(__preprocessText(command))
@@ -101,6 +106,12 @@ def renameCommand(finalCommands, commands_to_use: string):
         # Add alias to file
         extension_path = os.path.dirname(__file__)  # This assumes the script is in the `src` directory
         path = os.path.join(extension_path, 'renaming.json')
+
+        if not os.path.exists(path):
+            default_data = createDefaultRenamingFile()
+
+            with open(path, 'w') as renaming_file:
+                json.dump(default_data, renaming_file, indent=2)
         with open(path, 'r') as renaming_file:
             data = json.load(renaming_file)
 
@@ -116,6 +127,18 @@ def renameCommand(finalCommands, commands_to_use: string):
         return [command, alias]
     else:
         return ["Command not found", finalCommands[1]]
+
+def createDefaultRenamingFile():
+    return {
+        "commands":
+        {
+
+        },
+        "aliases":
+        {
+            
+        }
+    }
 
 def searchForCommands(processedText: set, commands_to_use: list):
     global renamingInputs

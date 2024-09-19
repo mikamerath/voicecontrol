@@ -135,13 +135,18 @@
         "commands": [
             {
                 "title":"Restart Server",
-                "category": "VoiceControl",
+                "category": "Voice Control",
                 "command": "voice-control.restart"
             },
             {
                 "command": "VoiceControl.renamedCommandInfo",
                 "title": "Renamed command info",
-                "category": "VoiceControl"
+                "category": "Voice Control"
+            },
+            {
+                "command": "VoiceControl.showRemappingWindow",
+                "title": "Show Remapping Window",
+                "category": "Voice Control"
             }
         ]
     },
