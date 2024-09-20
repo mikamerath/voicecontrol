@@ -207,6 +207,7 @@ def findSimilarPhrases(text, locale):
     locale_to_commands = {
         "en": commands.commands,
         "it": commands.commands_italian,
+        "tr": commands.commands_turkish,
     }
     commands_to_use = locale_to_commands[locale]
 
