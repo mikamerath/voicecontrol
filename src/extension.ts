@@ -39,6 +39,9 @@ let uiController: UIController | undefined;
 let statusText: string = 'Voice Control is starting up...';
 let color: string = 'grey';
 
+let listening = false;
+let invalidThemeSelected = '';
+
 let voiceControlStatusViewer: VoiceControlStatusViewer;
 
 let locale = vscode.env.language;
@@ -56,7 +59,7 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
     'Rename Command...': handleRenameCommand,
     'Rename Command: show chosen command': handleShowChosenCommand,
     wake: (message: any) => {
-        uiController?.waitForActivation();
+        uiController?.waitForActivation('');
     },
     listen: (message: any) => {
         uiController?.listenForCommand();
@@ -79,9 +82,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     uiController = new UIController();
 
     // Register the renaming custom command
-    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', (command, alias) => {
-        vscode.window.showInformationMessage('Renamed command ' + command + ' to ' + alias);
-    });
+    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', (command, alias) => {});
 
     //Get workspace root
     voiceControlStatusViewer = new VoiceControlStatusViewer();
@@ -145,6 +146,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                         } else {
                             vscode.commands.executeCommand(commandNameToID[message.content]);
                         }
+                        uiController?.waitForActivation('');
                     }
                 }
             });
@@ -193,36 +195,36 @@ export async function deactivate(): Promise<void> {
 
 class UIController {
     private statusBarItem: vscode.StatusBarItem;
-    private tutorial = true;
 
     constructor() {
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     }
 
-    waitForActivation() {
-        if (this.tutorial) {
-            vscode.window.showInformationMessage('Voice Control will give you its status in the bottom left corner :)');
+    waitForActivation(message: string) {
+        listening = false;
+        if (message !== '') {
+            statusText = message;
+        } else {
+            statusText = 'Voice Control : Waiting for activation word';
         }
-
-        statusText = 'Voice Control : Waiting for activation word.';
         color = 'blue';
         this.statusBarItem.text = '$(mic)' + statusText;
         this.statusBarItem.show();
 
         voiceControlStatusViewer.refresh();
+        setTimeout(() => {
+            if (!listening) {
+                this.statusBarItem.text = '$(mic)' + 'Voice Control : Waiting for activation word';
+            }
+        }, 3000);
     }
 
     listenForCommand() {
-        if (this.tutorial) {
-            vscode.window.showInformationMessage('Speak your desired command now and Voice Control will execute it.');
-        }
-
+        listening = true;
         statusText = 'Voice Control : Listening for voice command...';
         color = 'green';
         this.statusBarItem.text = '$(sync~spin)' + statusText;
         this.statusBarItem.show();
-
-        this.tutorial = false;
 
         voiceControlStatusViewer.refresh();
     }
@@ -321,48 +323,42 @@ function findMostSimilarTheme(themeName: string, themeList: string[], threshold:
 }
 
 function handleRenameCommand() {
-    vscode.window.showInformationMessage('Speak activation word and then which command you want to rename.');
-    uiController?.waitForActivation();
+    uiController?.waitForActivation('Say activation word, then the command to rename');
 }
 
 function handleShowChosenCommand() {
-    vscode.window.showInformationMessage('Speak activation word and then the alias for the command.');
-    uiController?.waitForActivation();
+    uiController?.waitForActivation('Say activation word, then the alias for the command');
 }
 
 function handleRenamingCommandFinal(message: any, locale: string, context: vscode.ExtensionContext) {
-    const command = message.parameters[0];
     const alias = message.parameters[1];
-    if (locale == 'it') {
-        vscode.commands.executeCommand(commandNameToIDIta[message.content], command, alias);
-    } else {
-        vscode.commands.executeCommand(commandNameToID[message.content], command, alias);
-    }
 
+    uiController?.waitForActivation('Successfully renamed command to ' + alias);
     updateRemappingWindow(context);
-    uiController?.waitForActivation();
 }
 
 function handleNoCommandFound(parameters: string) {
-    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not executed.');
-    uiController?.waitForActivation();
+    uiController?.waitForActivation('Command "' + parameters + '" does not exist');
 }
 
 function handleCommandNotRenamed(parameters: string) {
-    vscode.window.showInformationMessage('Command "' + parameters + '" does not exist and was not renamed.');
-    uiController?.waitForActivation();
+    uiController?.waitForActivation('Command "' + parameters + '" does not exist, renaming failed');
 }
 
 function setMultiStepCommandState(command: string) {
     currentMultistepCommand = command;
     awaitingCommandArgument = true;
-    uiController?.waitForActivation();
+    uiController?.waitForActivation('');
 }
 
 function resetMultiStepCommandState() {
     awaitingCommandArgument = false;
     currentMultistepCommand = '';
-    uiController?.waitForActivation();
+    if (invalidThemeSelected !== '') {
+        uiController?.waitForActivation(invalidThemeSelected + ' is not a valid theme');
+    } else {
+        uiController?.waitForActivation('');
+    }
 }
 function handleColorThemeCommand(message: any) {
     if (awaitingCommandArgument) {
@@ -372,7 +368,7 @@ function handleColorThemeCommand(message: any) {
         if (selectedTheme) {
             config.update('workbench.colorTheme', selectedTheme, vscode.ConfigurationTarget.Global);
         } else {
-            vscode.window.showInformationMessage('Invalid theme selected.');
+            invalidThemeSelected = message;
         }
         vscode.commands.executeCommand('workbench.action.closeQuickOpen');
         resetMultiStepCommandState();

@@ -133,11 +133,6 @@ def listen_for_wake_word(
                     else:
                         LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
                     prediction["label"] = ""
-                    # log_to_output("Listening for wake word...")
-                    LSP_SERVER.send_notification(
-                        "custom/notification", {"content": "wake"}
-                    )
-
 
 # **********************************************************
 # Required Language Server Initialization and Exit handlers.
