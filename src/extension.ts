@@ -19,6 +19,8 @@ import { createOutputChannel, onDidChangeConfiguration, registerCommand } from '
 import { Console } from 'console';
 import { commandNameToID } from './command-mapping';
 import { commandNameToIDIta } from './command-mapping-ita';
+import { commandNameToIDTr } from './command-mapping-tr';
+
 import availableThemes from './color-themes';
 
 import * as fs from 'fs';
@@ -143,6 +145,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     } else {
                         if (locale == 'it') {
                             vscode.commands.executeCommand(commandNameToIDIta[message.content]);
+                        } else if (locale == 'tr') {
+                            vscode.commands.executeCommand(commandNameToIDTr[message.content]);
                         } else {
                             vscode.commands.executeCommand(commandNameToID[message.content]);
                         }
