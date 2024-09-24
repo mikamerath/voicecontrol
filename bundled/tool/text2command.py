@@ -92,12 +92,15 @@ def __searchForAlias(text):
         else:
             return ""
 
-def renameCommand(finalCommands, commands_to_use: string):
+def renameCommand(finalCommands, commands_to_use: string, enableSuggestions: bool, numberCommandSuggestions: int):
     command = str(finalCommands[1])
     processedText = set(__preprocessText(command))
     alias = finalCommands[2].title()
      # Find the command if it exists.
-    similar_commands = searchForCommands(processedText, commands_to_use)
+    similar_commands = searchForCommands(processedText, commands_to_use, enableSuggestions, numberCommandSuggestions)
+    # Command suggestions don't apply for renaming
+    if len(similar_commands) and similar_commands[0] == "Display command suggestions":
+        similar_commands[0] == "Command not found"
     command = ""
     if len(similar_commands) and similar_commands[0] != "Command not found":
         command = similar_commands[0]
@@ -140,17 +143,18 @@ def createDefaultRenamingFile():
         }
     }
 
-def searchForCommands(processedText: set, commands_to_use: list):
+def searchForCommands(processedText: set, commands_to_use: list, enableSuggestions: bool, numberCommandSuggestions: int):
     global renamingInputs
     global isMultiStep
     global multiStepCommand
     global isRenamingCommand
     finalCommands = []
-    similarPhrases = [] # use this for ambiguous text for suggestions
+    similarPhrases = [] # use this for text that is 80% of text
     similarPhrase = [] # use this if text matches phrase
-    # Limit on number of suggested commands...will be taken from configuration settings later on.
-    # For now, hardcoded to 2. This limit cannot be greater than the amount of commands in the file.
-    commandLimit = 2
+    suggestedPhrases = [] # use this for suggestions
+
+    # Limit on number of suggested commands taken from configuration settings.
+    commandLimit = numberCommandSuggestions
     commandCount = 0
     # Normal command process
     for phrase in commands_to_use:
@@ -170,10 +174,18 @@ def searchForCommands(processedText: set, commands_to_use: list):
         else:
             # This ensures that similar commands don't get automatically executed. Has to be superrr close.
             if(similarity >= 0.80):
+                # Add for a suggestion
+                if(enableSuggestions and numberCommandSuggestions > 0):
+                    suggestedPhrases.append((similarity, phrase.split("\n")[0]))
                 similarPhrases.append((similarity, phrase.split("\n")[0]))
                 __setMultiStep(phrase.split("\n")[0])
                 commandCount+=1
+            if(enableSuggestions and numberCommandSuggestions > 0):
+                if(similarity >= 0.30):
+                    suggestedPhrases.append(((similarity, phrase.split("\n")[0])))
     similarPhrases.sort() # Phrases are sorted in ascending order (most similar in higher indices).
+    if enableSuggestions and suggestedPhrases.__len__() > 0 and numberCommandSuggestions > 0:
+        suggestedPhrases.sort() # Phrases are sorted in ascending order (most similar in higher indices).
     print(similarPhrases)
     if(commandLimit <= commandCount):
         __setMultiStep(phrase.split("\n")[0])
@@ -189,6 +201,16 @@ def searchForCommands(processedText: set, commands_to_use: list):
     if(finalCommands.__len__() > 0 and (finalCommands[0] == "Rename Command..." or finalCommands[0] == "Rinomina Comando...")):
         isRenamingCommand = True
 
+    # Check if command suggestions need to be displayed
+    if enableSuggestions and numberCommandSuggestions > 0 and finalCommands.__len__() > 0 and finalCommands[0] == "Command not found" and suggestedPhrases.__len__() > 0:
+        finalCommands[0] = ("Display command suggestions")
+        if(numberCommandSuggestions <= suggestedPhrases.__len__()):
+            for suggestion in suggestedPhrases[:-numberCommandSuggestions-1:-1]:
+                finalCommands.append(suggestion[1])
+        else:
+            for suggestion in suggestedPhrases[::-1]:
+                finalCommands.append(suggestion[1])
+
     # Exact command, suggested commands (lower index=most similar), or command not found.
     return finalCommands
 
@@ -198,7 +220,7 @@ finds the phrases that are the most similar to the text. Uses pre-processing and
 Returns a list of similar phrases."""
 
 
-def findSimilarPhrases(text, locale):
+def findSimilarPhrases(text, locale, enableCommandSuggestions: bool, numberCommandSuggestions: int):
     finalCommands = [] # final list of commands
     global renamingInputs
     global isMultiStep
@@ -224,7 +246,7 @@ def findSimilarPhrases(text, locale):
                 finalCommands.append("Renaming Command: Final")
                 finalCommands.append(renamingInputs[0])
                 finalCommands.append(text)
-                commandAndAlias = renameCommand(finalCommands, commands_to_use)
+                commandAndAlias = renameCommand(finalCommands, commands_to_use, enableCommandSuggestions, numberCommandSuggestions)
                 if commandAndAlias[0] == "Command not found":
                     finalCommands[0] = "Command not renamed"
                     finalCommands[1] = commandAndAlias[1]
@@ -252,7 +274,7 @@ def findSimilarPhrases(text, locale):
         # Check if this is a multi-step command
         __setMultiStep(finalCommands[0])
     else:
-        finalCommands = searchForCommands(processedText, commands_to_use)
+        finalCommands = searchForCommands(processedText, commands_to_use, enableCommandSuggestions, numberCommandSuggestions)
     if finalCommands[0] == 'Command not found':
         finalCommands.append(text)
 

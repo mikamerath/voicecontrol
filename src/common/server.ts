@@ -2,8 +2,9 @@
 // Licensed under the MIT License.
 
 import * as fsapi from 'fs-extra';
+import * as vscode from 'vscode';
 import { Disposable, env, LogOutputChannel } from 'vscode';
-import { State } from 'vscode-languageclient';
+import { integer, State } from 'vscode-languageclient';
 import {
     LanguageClient,
     LanguageClientOptions,
@@ -17,7 +18,12 @@ import { getExtensionSettings, getGlobalSettings, getWorkspaceSettings, ISetting
 import { getLSClientTraceLevel, getProjectRoot } from './utilities';
 import { isVirtualWorkspace } from './vscodeapi';
 
-export type IInitOptions = { settings: ISettings[]; globalSettings: ISettings };
+export type IInitOptions = {
+    settings: ISettings[];
+    globalSettings: ISettings;
+    enableCommandSuggestions: Boolean;
+    numberCommandSuggestions: integer;
+};
 
 async function createServer(
     settings: ISettings,
@@ -93,10 +99,24 @@ export async function restartServer(
     const projectRoot = await getProjectRoot();
     const workspaceSetting = await getWorkspaceSettings(serverId, projectRoot, true);
 
+    // Gather additional configuration values from VS Code settings
+    const config = vscode.workspace.getConfiguration('voice-control');
+    const enableCommandSuggestions: Boolean = config.get('enableCommandSuggestions') as boolean;
+    const numberCommandSuggestions: number = config.get('numberOfCommandSuggestions') as number;
+    const initializationOptions: IInitOptions = {
+        settings: await getExtensionSettings(serverId, true),
+        globalSettings: await getGlobalSettings(serverId, false),
+        enableCommandSuggestions: enableCommandSuggestions,
+        numberCommandSuggestions: numberCommandSuggestions,
+    };
+
     const newLSClient = await createServer(workspaceSetting, serverId, serverName, outputChannel, {
         settings: await getExtensionSettings(serverId, true),
         globalSettings: await getGlobalSettings(serverId, false),
+        enableCommandSuggestions: enableCommandSuggestions,
+        numberCommandSuggestions: numberCommandSuggestions,
     });
+
     traceInfo(`Server: Start requested.`);
     _disposables.push(
         newLSClient.onDidChangeState((e) => {

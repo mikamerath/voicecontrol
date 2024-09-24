@@ -142,6 +142,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                         handleRenamingCommandFinal(message, locale, context);
                     } else if (message.content == 'Command not renamed') {
                         handleCommandNotRenamed(message.parameters);
+                    } else if (message.content == 'Display command suggestions') {
+                        handleCommandSuggestions(message.parameters, locale);
                     } else {
                         if (locale == 'it') {
                             vscode.commands.executeCommand(commandNameToIDIta[message.content]);
@@ -588,4 +590,25 @@ function getVCRemappingContent(context: vscode.ExtensionContext) {
                 <h1> Voice Command Map</h1>
         ` + parsedCommandList
     );
+}
+
+async function handleCommandSuggestions(parameters: [], locale: string) {
+    const selection = await vscode.window.showQuickPick(parameters, {
+        placeHolder: 'Select an option',
+    });
+
+    if (selection) {
+        vscode.window.showInformationMessage(`You selected: ${selection}`);
+        if (locale == 'it') {
+            vscode.commands.executeCommand(commandNameToIDIta[selection]);
+        } else if (locale == 'tr') {
+            vscode.commands.executeCommand(commandNameToIDTr[selection]);
+        } else {
+            vscode.commands.executeCommand(commandNameToID[selection]);
+        }
+        uiController?.waitForActivation('');
+    } else {
+        uiController?.waitForActivation('');
+        return;
+    }
 }
