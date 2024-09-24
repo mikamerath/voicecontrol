@@ -124,11 +124,11 @@ def listen_for_wake_word(
                     )
                     result = transcribe(chunk_length_s=3.0)
                     log_to_output("You said: " + result)
-                    command = text2command.findSimilarPhrases(result, locale)
+                    command = text2command.findSimilarPhrases(result, locale, enableCommandSuggestions, numberCommandSuggestions)
                     log_to_output(command[0])
                     if(command[0] == "Command not found" or command[0] == "Command not renamed"):
                         LSP_SERVER.send_notification('custom/notification', {'content': command[0], 'parameters': command[1]})
-                    elif(command[0] == "Renaming Command: Final"):
+                    elif(command[0] == "Renaming Command: Final" or command[0] == "Display command suggestions"):
                         LSP_SERVER.send_notification('custom/notification', {'content': command[0], 'parameters': command[1:]})
                     else:
                         LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
@@ -160,6 +160,14 @@ def initialize(params: lsp.InitializeParams) -> None:
     global locale
     locale = params.locale
     log_to_output(f"Using the language {commands.convert_locale_language[locale]}")
+
+    global enableCommandSuggestions
+    enableCommandSuggestions = params.initialization_options["enableCommandSuggestions"]
+    log_to_output(f"Enable command suggestions is {enableCommandSuggestions}")
+
+    global numberCommandSuggestions
+    numberCommandSuggestions = params.initialization_options["numberCommandSuggestions"]
+    log_to_output(f"Number of command suggestions is {numberCommandSuggestions}")
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     global classifier

@@ -129,7 +129,17 @@
                     ],
                     "scope": "machine",
                     "type": "string"
-                }
+                }, 
+                "voice-control.enableCommandSuggestions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable Command Suggestions"
+                  },
+                  "voice-control.numberOfCommandSuggestions": {
+                    "type": "number",
+                    "default": 5,
+                    "description": "Number of Command Suggestions"
+                  }
             }
         },
         "commands": [
