@@ -60,10 +60,10 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
     'Go to File...': handleGoToFile,
     'Rename Command...': handleRenameCommand,
     'Rename Command: show chosen command': handleShowChosenCommand,
-    wake: (message: any) => {
+    wake: (/*message: any*/) => {
         uiController?.waitForActivation('');
     },
-    listen: (message: any) => {
+    listen: (/*message: any*/) => {
         uiController?.listenForCommand();
     },
     // Add other commands here
@@ -84,7 +84,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     uiController = new UIController();
 
     // Register the renaming custom command
-    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', (command, alias) => {});
+    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', (/*command, alias*/) => {});
 
     //Get workspace root
     voiceControlStatusViewer = new VoiceControlStatusViewer();
@@ -139,7 +139,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     if (message.content == 'Command not found') {
                         handleNoCommandFound(message.parameters);
                     } else if (message.content == 'Renaming Command: Final') {
-                        handleRenamingCommandFinal(message, locale, context);
+                        handleRenamingCommandFinal(message, /*locale,*/ context);
                     } else if (message.content == 'Command not renamed') {
                         handleCommandNotRenamed(message.parameters);
                     } else if (message.content == 'Display command suggestions') {
@@ -336,7 +336,7 @@ function handleShowChosenCommand() {
     uiController?.waitForActivation('Say activation word, then the alias for the command');
 }
 
-function handleRenamingCommandFinal(message: any, locale: string, context: vscode.ExtensionContext) {
+function handleRenamingCommandFinal(message: any, /*locale: string,*/ context: vscode.ExtensionContext) {
     const alias = message.parameters[1];
 
     uiController?.waitForActivation('Successfully renamed command to ' + alias);
@@ -447,7 +447,7 @@ function updateRemappingWindow(context: vscode.ExtensionContext) {
             if (pathExists) {
                 renamingPanel.webview.html = getVCRemappingContent(context);
             } else {
-                renamingPanel.webview.html = getVCRemappingContentNoBindings(context);
+                renamingPanel.webview.html = getVCRemappingContentNoBindings(/*context*/);
             }
         });
 
@@ -456,12 +456,12 @@ function updateRemappingWindow(context: vscode.ExtensionContext) {
         if (pathExists) {
             renamingPanel.webview.html = getVCRemappingContent(context);
         } else {
-            renamingPanel.webview.html = getVCRemappingContentNoBindings(context);
+            renamingPanel.webview.html = getVCRemappingContentNoBindings(/*context*/);
         }
     }
 }
 
-function getVCRemappingContentNoBindings(context: vscode.ExtensionContext) {
+function getVCRemappingContentNoBindings(/*context: vscode.ExtensionContext*/) {
     return `
 <!DOCTYPE html>
 <html lang="en">
