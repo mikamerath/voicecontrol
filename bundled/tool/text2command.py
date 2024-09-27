@@ -85,6 +85,7 @@ def __searchForAlias(text):
         command = aliases[cleaned_text]
         return command
     else:
+        return ""
         cleaned_text += "..."
         if cleaned_text in aliases:
             command = aliases[cleaned_text]

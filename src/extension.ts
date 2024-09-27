@@ -512,10 +512,10 @@ function getVCRemappingContentNoBindings(/*context: vscode.ExtensionContext*/) {
 }
 
 function getVCRemappingContent(context: vscode.ExtensionContext) {
-    let originalCommands = [''];
-    let renamedCommands = [''];
+    let originalCommands: string[] = [''];
+    let renamedCommands: string[] = [''];
 
-    originalCommands.pop();
+    originalCommands.pop(); // Removing the empty element added initially
     renamedCommands.pop();
 
     const filePath = context.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
@@ -525,71 +525,93 @@ function getVCRemappingContent(context: vscode.ExtensionContext) {
 
     const parsedCommands = parsedData.commands;
 
-    let i = 0;
+    // Populate the original and renamed commands arrays
     for (const parsedCommand in parsedCommands) {
         if (parsedCommands.hasOwnProperty(parsedCommand)) {
             const value = parsedCommands[parsedCommand];
-            //append to original and renamed
             originalCommands.push(value);
             renamedCommands.push(parsedCommand);
-            i += 1;
         }
     }
 
-    let parsedCommandList = '';
-
+    // Generate the dynamic HTML for the command list
+    let parsedCommandList = '<div class="command-list">';
     for (let i = 0; i < originalCommands.length; i++) {
         parsedCommandList +=
-            `<div class="menu-item">
-    <span>` +
+            `
+            <div class="menu-item">
+                <span>` +
             originalCommands[i] +
             `</span>
-    <span>= : ` +
+                <span>` +
             renamedCommands[i] +
             `</span>
-    </div>
-    </body>
-    </html>
-    `;
+            </div>`;
     }
+    parsedCommandList += '</div>'; // Close the command list container
 
-    //TODO : Some of the text in here will need to be translated for each locale
-    return (
-        `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <title>Remapping Window</title>
-                <style>
-                    body {
-                        font-family: sans-serif;
-                        margin: 0;
-                        padding: 0;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    .menu-item {
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 10px;
-                        border-bottom: 1px solid #ccc;
-                    }
-                    .menu-item:hover {
-                        background-color: #262626;
-                    }
-                    .keybinding {
-                        background-color: #223c54;
-                        padding: 5px 10px;
-                        border-radius: 3px;
-                        cursor: pointer;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1> Voice Command Map</h1>
-        ` + parsedCommandList
-    );
+    // Return the complete HTML structure
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remapping Window</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .message-box {
+            margin-top: 50px;
+            text-align: center;
+            background-color: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            border: 1px solid #3c3c3c;
+            width: 400px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #569cd6;
+        }
+        .command-list {
+            margin-top: 20px;
+            background-color: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            background-color: #262626;
+            border-radius: 4px;
+        }
+        span {
+            color: #cccccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="message-box">
+        <h1>Remap Voice Bindings</h1>
+        ${parsedCommandList} <!-- Inject the dynamically generated command list here -->
+    </div>
+</body>
+</html>
+        `;
 }
 
 async function handleCommandSuggestions(parameters: [], locale: string) {
