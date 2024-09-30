@@ -231,6 +231,10 @@ def findSimilarPhrases(text, locale, enableCommandSuggestions: bool, numberComma
         "en": commands.commands,
         "it": commands.commands_italian,
         "tr": commands.commands_turkish,
+        "es": commands.commands_spanish,
+        "pt-br": commands.commands_portuguese,
+        "fr": commands.commands_french,
+        "hu": commands.commands_hungarian,
     }
     commands_to_use = locale_to_commands[locale]
 

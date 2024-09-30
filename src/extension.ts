@@ -20,6 +20,10 @@ import { Console } from 'console';
 import { commandNameToID } from './command-mapping';
 import { commandNameToIDIta } from './command-mapping-ita';
 import { commandNameToIDTr } from './command-mapping-tr';
+import { commandNameToIDEsp } from './command-mapping-esp';
+import { commandNameToIDPt } from './command-mapping-pt';
+import { commandNameToIDFr } from './command-mapping-fr';
+import { commandNameToIDHu } from './commands-mapping-hu';
 
 import availableThemes from './color-themes';
 
@@ -84,7 +88,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     uiController = new UIController();
 
     // Register the renaming custom command
-    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', (/*command, alias*/) => {});
+    let renamedCommandInfo = vscode.commands.registerCommand(
+        'VoiceControl.renamedCommandInfo',
+        (/*command, alias*/) => {},
+    );
 
     //Get workspace root
     voiceControlStatusViewer = new VoiceControlStatusViewer();
@@ -149,6 +156,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                             vscode.commands.executeCommand(commandNameToIDIta[message.content]);
                         } else if (locale == 'tr') {
                             vscode.commands.executeCommand(commandNameToIDTr[message.content]);
+                        } else if (locale == 'es') {
+                            vscode.commands.executeCommand(commandNameToIDEsp[message.content]);
+                        } else if (locale == 'pt-br') {
+                            vscode.commands.executeCommand(commandNameToIDPt[message.content]);
+                        } else if (locale == 'fr') {
+                            vscode.commands.executeCommand(commandNameToIDFr[message.content]);
+                        } else if (locale == 'hu') {
+                            vscode.commands.executeCommand(commandNameToIDHu[message.content]);
                         } else {
                             vscode.commands.executeCommand(commandNameToID[message.content]);
                         }
