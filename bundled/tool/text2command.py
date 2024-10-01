@@ -85,7 +85,6 @@ def __searchForAlias(text):
         command = aliases[cleaned_text]
         return command
     else:
-        return ""
         cleaned_text += "..."
         if cleaned_text in aliases:
             command = aliases[cleaned_text]
@@ -123,9 +122,10 @@ def renameCommand(finalCommands, commands_to_use: string, enableSuggestions: boo
         if command in data['commands']:
             old_alias = data['commands'][command]
         data['commands'][command] = alias
-        data['aliases'][alias] = command
-        if old_alias in data['aliases']:
-            del data['aliases'][old_alias] 
+        if old_alias != alias:
+            data['aliases'][alias] = command
+            if old_alias in data['aliases']:
+                del data['aliases'][old_alias] 
         with open(path, 'w') as file:
             json.dump(data, file, indent=4)
         return [command, alias]

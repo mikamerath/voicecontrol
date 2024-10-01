@@ -351,11 +351,11 @@ function handleShowChosenCommand() {
     uiController?.waitForActivation('Say activation word, then the alias for the command');
 }
 
-function handleRenamingCommandFinal(message: any, /*locale: string,*/ context: vscode.ExtensionContext) {
+function handleRenamingCommandFinal(message: any, /*locale: string,*/ _context: vscode.ExtensionContext) {
     const alias = message.parameters[1];
 
     uiController?.waitForActivation('Successfully renamed command to ' + alias);
-    updateRemappingWindow(context);
+    updateRemappingWindow(_context);
 }
 
 function handleNoCommandFound(parameters: string) {
