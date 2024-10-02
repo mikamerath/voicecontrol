@@ -10,6 +10,7 @@ import copy
 import json
 import os
 import pathlib
+from time import sleep
 import re
 import sys
 import sysconfig
@@ -133,7 +134,8 @@ def listen_for_wake_word(
                     else:
                         LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
                     prediction["label"] = ""
-
+            sleep(.250) #Decreases load on cpu
+            
 # **********************************************************
 # Required Language Server Initialization and Exit handlers.
 # **********************************************************
