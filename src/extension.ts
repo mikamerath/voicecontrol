@@ -458,6 +458,15 @@ function updateRemappingWindow(context: vscode.ExtensionContext) {
                 },
             );
 
+            renamingPanel.webview.onDidReceiveMessage((message) => {
+                switch (message.command) {
+                    case 'rename':
+                        const { newName, index } = message;
+                        renameAlias(newName, index, context);
+                        break;
+                }
+            });
+
             // And set its HTML content
             if (pathExists) {
                 renamingPanel.webview.html = getVCRemappingContent(context);
@@ -471,12 +480,36 @@ function updateRemappingWindow(context: vscode.ExtensionContext) {
         if (pathExists) {
             renamingPanel.webview.html = getVCRemappingContent(context);
         } else {
-            renamingPanel.webview.html = getVCRemappingContentNoBindings(/*context*/);
+            renamingPanel.webview.html = getVCRemappingContentNoBindings();
         }
     }
 }
 
-function getVCRemappingContentNoBindings(/*context: vscode.ExtensionContext*/) {
+function renameAlias(newName: string, index: number, context: vscode.ExtensionContext) {
+    const filePath = context.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+    const rawData = fs.readFileSync(filePath, 'utf8');
+    let parsedData = JSON.parse(rawData);
+
+    const originalCommandName = Object.keys(parsedData.commands)[index];
+
+    //Add '...' to indicate that this command takes multiple steps.
+    if (originalCommandName.includes('...') && !newName.includes('...')) {
+        newName += '...';
+    }
+
+    const currentAlias = parsedData.commands[originalCommandName];
+
+    delete parsedData.aliases[currentAlias];
+    parsedData.aliases[newName] = originalCommandName;
+
+    parsedData.commands[originalCommandName] = newName;
+
+    fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
+
+    updateRemappingWindow(context);
+}
+
+function getVCRemappingContentNoBindings() {
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -526,7 +559,7 @@ function getVCRemappingContentNoBindings(/*context: vscode.ExtensionContext*/) {
     `;
 }
 
-function getVCRemappingContent(context: vscode.ExtensionContext) {
+function getVCRemappingContent(context: vscode.ExtensionContext): string {
     let originalCommands: string[] = [''];
     let renamedCommands: string[] = [''];
 
@@ -552,15 +585,10 @@ function getVCRemappingContent(context: vscode.ExtensionContext) {
     // Generate the dynamic HTML for the command list
     let parsedCommandList = '<div class="command-list">';
     for (let i = 0; i < originalCommands.length; i++) {
-        parsedCommandList +=
-            `
-            <div class="menu-item">
-                <span>` +
-            originalCommands[i] +
-            `</span>
-                <span>` +
-            renamedCommands[i] +
-            `</span>
+        parsedCommandList += `
+            <div class="menu-item" data-index="${i}">
+                <span class="original-command">${originalCommands[i]}</span>
+                <span>${renamedCommands[i]}</span>
             </div>`;
     }
     parsedCommandList += '</div>'; // Close the command list container
@@ -614,6 +642,14 @@ function getVCRemappingContent(context: vscode.ExtensionContext) {
             background-color: #262626;
             border-radius: 4px;
         }
+        .menu-item input {
+            background-color: #262626;
+            color: #cccccc;
+            border: none;
+            border-bottom: 1px solid #569cd6;
+            outline: none;
+            width: 100%;
+        }
         span {
             color: #cccccc;
         }
@@ -624,9 +660,55 @@ function getVCRemappingContent(context: vscode.ExtensionContext) {
         <h1>Remap Voice Bindings</h1>
         ${parsedCommandList} <!-- Inject the dynamically generated command list here -->
     </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        function handleRename(newValue, index) {
+            vscode.postMessage({
+                command: 'rename',
+                newName: newValue,
+                index: index
+            });
+        }
+
+        document.querySelectorAll('.menu-item').forEach((item) => {
+            const originalSpan = item.querySelector('.original-command');
+            const index = item.dataset.index;
+
+            originalSpan.addEventListener('click', function () {
+                const currentText = originalSpan.innerText;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentText;
+
+                item.replaceChild(input, originalSpan);
+
+                input.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        const newValue = input.value;
+                        handleRename(newValue, index);
+
+                        originalSpan.innerText = newValue;
+                        item.replaceChild(originalSpan, input);
+                    }
+                });
+
+                input.addEventListener('blur', function () {
+                    const newValue = input.value;
+                    handleRename(newValue, index);
+
+                    originalSpan.innerText = newValue;
+                    item.replaceChild(originalSpan, input);
+                });
+
+                input.focus();
+            });
+        });
+    </script>
 </body>
 </html>
-        `;
+    `;
 }
 
 async function handleCommandSuggestions(parameters: [], locale: string) {
