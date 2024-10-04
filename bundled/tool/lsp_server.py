@@ -69,7 +69,7 @@ import commands
 
 
 # Transcribes speech and converts it to text
-def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
+def transcribe(chunk_length_s=5.0, stream_chunk_s=0.75):
     sampling_rate = transcriber.feature_extractor.sampling_rate
 
     mic = ffmpeg_microphone_live(
@@ -77,6 +77,9 @@ def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
         chunk_length_s=chunk_length_s,
         stream_chunk_s=stream_chunk_s,
     )
+
+    num_inferences = 1
+    phrase = ""
 
     for item in transcriber(
         mic,
@@ -87,7 +90,15 @@ def transcribe(chunk_length_s=5.0, stream_chunk_s=1.0):
     ):
         # Uncomment to see the prediction as it happens
         # sys.stdout.write("\033[K")
+        log_to_output(str(item))
         # print(item["text"], end="\r")
+        if num_inferences > 2 and item["text"][-1] == ".":
+            break
+        num_inferences += 1
+        if phrase == item["text"]:
+            break
+        phrase = item["text"]
+        # This if statement should never be hit for commands longer than a word
         if not item["partial"][0]:
             break
 
@@ -123,19 +134,39 @@ def listen_for_wake_word(
                     LSP_SERVER.send_notification(
                         "custom/notification", {"content": "listen"}
                     )
-                    result = transcribe(chunk_length_s=3.0)
+                    result = transcribe(chunk_length_s=20.0)
                     log_to_output("You said: " + result)
-                    command = text2command.findSimilarPhrases(result, locale, enableCommandSuggestions, numberCommandSuggestions)
+                    command = text2command.findSimilarPhrases(
+                        result,
+                        locale,
+                        enableCommandSuggestions,
+                        numberCommandSuggestions,
+                    )
                     log_to_output(command[0])
-                    if(command[0] == "Command not found" or command[0] == "Command not renamed"):
-                        LSP_SERVER.send_notification('custom/notification', {'content': command[0], 'parameters': command[1]})
-                    elif(command[0] == "Renaming Command: Final" or command[0] == "Display command suggestions"):
-                        LSP_SERVER.send_notification('custom/notification', {'content': command[0], 'parameters': command[1:]})
+                    if (
+                        command[0] == "Command not found"
+                        or command[0] == "Command not renamed"
+                    ):
+                        LSP_SERVER.send_notification(
+                            "custom/notification",
+                            {"content": command[0], "parameters": command[1]},
+                        )
+                    elif (
+                        command[0] == "Renaming Command: Final"
+                        or command[0] == "Display command suggestions"
+                    ):
+                        LSP_SERVER.send_notification(
+                            "custom/notification",
+                            {"content": command[0], "parameters": command[1:]},
+                        )
                     else:
-                        LSP_SERVER.send_notification('custom/notification', {'content': command[0]})
+                        LSP_SERVER.send_notification(
+                            "custom/notification", {"content": command[0]}
+                        )
                     prediction["label"] = ""
-            sleep(.250) #Decreases load on cpu
-            
+            sleep(0.250)  # Decreases load on cpu
+
+
 # **********************************************************
 # Required Language Server Initialization and Exit handlers.
 # **********************************************************
