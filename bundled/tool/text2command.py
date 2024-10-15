@@ -261,6 +261,7 @@ def findSimilarPhrases(
         "pt-br": commands.commands_portuguese,
         "fr": commands.commands_french,
         "hu": commands.commands_hungarian,
+        "de": commands.commands_german,
     }
     commands_to_use = locale_to_commands[locale]
 
