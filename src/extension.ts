@@ -24,7 +24,7 @@ import { commandNameToIDEsp } from './command-mapping-esp';
 import { commandNameToIDPt } from './command-mapping-pt';
 import { commandNameToIDFr } from './command-mapping-fr';
 import { commandNameToIDHu } from './commands-mapping-hu';
-
+import { commandNameToIDDe } from './command-mapping-de';
 import availableThemes from './color-themes';
 
 import * as fs from 'fs';
@@ -164,6 +164,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                             vscode.commands.executeCommand(commandNameToIDFr[message.content]);
                         } else if (locale == 'hu') {
                             vscode.commands.executeCommand(commandNameToIDHu[message.content]);
+                        } else if (locale == 'de') {
+                            vscode.commands.executeCommand(commandNameToIDDe[message.content]);
                         } else {
                             vscode.commands.executeCommand(commandNameToID[message.content]);
                         }
