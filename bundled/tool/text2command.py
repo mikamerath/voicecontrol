@@ -111,7 +111,7 @@ def renameCommand(
     )
     # Command suggestions don't apply for renaming
     if len(similar_commands) and similar_commands[0] == "Display command suggestions":
-        similar_commands[0] == "Command not found"
+        similar_commands[0] = "Command not found"
     command = ""
     if len(similar_commands) and similar_commands[0] != "Command not found":
         command = similar_commands[0]
