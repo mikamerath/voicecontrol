@@ -402,6 +402,7 @@ function resetMultiStepCommandState() {
     currentMultistepCommand = '';
     if (invalidThemeSelected !== '') {
         uiController?.waitForActivation(invalidThemeSelected + ' is not a valid theme');
+        invalidThemeSelected = '';
     } else {
         uiController?.waitForActivation('');
     }
