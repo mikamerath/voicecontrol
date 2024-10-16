@@ -24,6 +24,11 @@ import { commandNameToIDEsp } from './command-mapping-esp';
 import { commandNameToIDPt } from './command-mapping-pt';
 import { commandNameToIDFr } from './command-mapping-fr';
 import { commandNameToIDHu } from './commands-mapping-hu';
+import { commandNameToIDRu } from './command-mapping-ru';
+import { commandNameToIDJap } from './command-mapping-jap';
+import { commandNameToIDKo } from './command-mapping-ko';
+import { commandNameToIDPl } from './command-mapping-pl';
+import { commandNameToIDCs } from './command-mapping-cs';
 import { commandNameToIDDe } from './command-mapping-de';
 import availableThemes from './color-themes';
 
@@ -142,36 +147,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 traceLog('Received message from Python:', message);
                 //This message content can include both voice commands from the user and python server messages
                 //Execute command
-                if (!handleMessage(message.content)) {
-                    if (message.content == 'Command not found') {
-                        handleNoCommandFound(message.parameters);
-                    } else if (message.content == 'Renaming Command: Final') {
-                        handleRenamingCommandFinal(message, /*locale,*/ context);
-                    } else if (message.content == 'Command not renamed') {
-                        handleCommandNotRenamed(message.parameters);
-                    } else if (message.content == 'Display command suggestions') {
-                        handleCommandSuggestions(message.parameters, locale);
-                    } else {
-                        if (locale == 'it') {
-                            vscode.commands.executeCommand(commandNameToIDIta[message.content]);
-                        } else if (locale == 'tr') {
-                            vscode.commands.executeCommand(commandNameToIDTr[message.content]);
-                        } else if (locale == 'es') {
-                            vscode.commands.executeCommand(commandNameToIDEsp[message.content]);
-                        } else if (locale == 'pt-br') {
-                            vscode.commands.executeCommand(commandNameToIDPt[message.content]);
-                        } else if (locale == 'fr') {
-                            vscode.commands.executeCommand(commandNameToIDFr[message.content]);
-                        } else if (locale == 'hu') {
-                            vscode.commands.executeCommand(commandNameToIDHu[message.content]);
-                        } else if (locale == 'de') {
-                            vscode.commands.executeCommand(commandNameToIDDe[message.content]);
-                        } else {
-                            vscode.commands.executeCommand(commandNameToID[message.content]);
-                        }
-                        uiController?.waitForActivation('');
-                    }
-                }
+                handleServerMessage(message, context);
             });
             return;
         }
@@ -208,6 +184,53 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await runServer();
         }
     });
+}
+
+function executeLocaleCommand(messageContent: string, locale: string) {
+    const localeCommandMap: { [key: string]: { [key: string]: string } } = {
+        it: commandNameToIDIta,
+        tr: commandNameToIDTr,
+        es: commandNameToIDEsp,
+        'pt-br': commandNameToIDPt,
+        fr: commandNameToIDFr,
+        hu: commandNameToIDHu,
+        ru: commandNameToIDRu,
+        ja: commandNameToIDJap,
+        ko: commandNameToIDKo,
+        pl: commandNameToIDPl,
+        cs: commandNameToIDCs,
+        de: commandNameToIDDe,
+        default: commandNameToID,
+    };
+
+    const commandMap = localeCommandMap[locale] || localeCommandMap['default'];
+    const command = commandMap[messageContent];
+
+    vscode.commands.executeCommand(command);
+}
+
+function handleServerMessage(message: any, context: vscode.ExtensionContext) {
+    if (handleMessage(message.content)) {
+        return;
+    }
+
+    switch (message.content) {
+        case 'Command not found':
+            handleNoCommandFound(message.parameters);
+            break;
+        case 'Renaming Command: Final':
+            handleRenamingCommandFinal(message, context);
+            break;
+        case 'Command not renamed':
+            handleCommandNotRenamed(message.parameters);
+            break;
+        case 'Display command suggestions':
+            handleCommandSuggestions(message.parameters, locale);
+            break;
+        default:
+            executeLocaleCommand(message.content, locale);
+    }
+    uiController?.waitForActivation('');
 }
 
 export async function deactivate(): Promise<void> {
@@ -437,9 +460,6 @@ function handleMessage(message: any): Boolean {
         if (commandHandlers[message]) {
             commandHandlers[message](message);
             return true;
-        } else {
-            console.log('Unknown command', message);
-            return false;
         }
     }
     return false;
