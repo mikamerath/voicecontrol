@@ -111,7 +111,7 @@ def renameCommand(
     )
     # Command suggestions don't apply for renaming
     if len(similar_commands) and similar_commands[0] == "Display command suggestions":
-        similar_commands[0] == "Command not found"
+        similar_commands[0] = "Command not found"
     command = ""
     if len(similar_commands) and similar_commands[0] != "Command not found":
         command = similar_commands[0]
@@ -202,7 +202,7 @@ def searchForCommands(
         and numberCommandSuggestions > 0
     ):
         suggestedPhrases.sort()  # Phrases are sorted in ascending order (most similar in higher indices).
-    print(similarPhrases)
+
     if commandLimit <= commandCount:
         __setMultiStep(phrase.split("\n")[0])
         for phrase in similarPhrases[: -commandLimit - 1 : -1]:
@@ -261,6 +261,12 @@ def findSimilarPhrases(
         "pt-br": commands.commands_portuguese,
         "fr": commands.commands_french,
         "hu": commands.commands_hungarian,
+        "de": commands.commands_german,
+        "ru": commands.commands_russian,
+        "ja": commands.commands_japanese,
+        "ko": commands.commands_korean,
+        "pl": commands.commands_polish,
+        "cs": commands.commands_czech,
     }
     commands_to_use = locale_to_commands[locale]
 
