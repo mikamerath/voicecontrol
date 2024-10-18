@@ -72,6 +72,9 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
     wake: (/*message: any*/) => {
         uiController?.waitForActivation('');
     },
+    loading: (/*message: any*/) => {
+        uiController?.loading();
+    },
     listen: (/*message: any*/) => {
         uiController?.listenForCommand();
     },
@@ -229,8 +232,8 @@ function handleServerMessage(message: any, context: vscode.ExtensionContext) {
             break;
         default:
             executeLocaleCommand(message.content, locale);
+            uiController?.waitForActivation('');
     }
-    uiController?.waitForActivation('');
 }
 
 export async function deactivate(): Promise<void> {
@@ -270,6 +273,13 @@ class UIController {
         statusText = 'Voice Control : Listening for voice command...';
         color = 'green';
         this.statusBarItem.text = '$(sync~spin)' + statusText;
+        this.statusBarItem.show();
+
+        voiceControlStatusViewer.refresh();
+    }
+
+    loading() {
+        this.statusBarItem.text = '$(sync~loading)' + 'Voice Control : Waiting for activation word';
         this.statusBarItem.show();
 
         voiceControlStatusViewer.refresh();

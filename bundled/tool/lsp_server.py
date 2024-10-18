@@ -60,6 +60,9 @@ LSP_SERVER = server.LanguageServer(
 from transformers import pipeline, WhisperTokenizer, WhisperFeatureExtractor
 from transformers.pipelines.audio_utils import ffmpeg_microphone_live
 import torch
+import io
+import threading
+from contextlib import redirect_stdout
 
 import text2command
 import commands
@@ -68,39 +71,59 @@ import commands
 # print(classifier.model.config.id2label)
 
 
+# Once "Using microphone:" is printed that's when mic starts listening
+def monitor_microphone_output(output_buffer, stop_event):
+    while not stop_event.is_set():
+        if "Using microphone:" in output_buffer.getvalue():
+            LSP_SERVER.send_notification("custom/notification", {"content": "listen"})
+            stop_event.set()  # Stop monitoring once the message is detected
+
+
 # Transcribes speech and converts it to text
 def transcribe(chunk_length_s=5.0, stream_chunk_s=0.75):
     sampling_rate = transcriber.feature_extractor.sampling_rate
+    # Set up a buffer to capture stdout
+    output_buffer = io.StringIO()
+    stop_event = threading.Event()
 
-    mic = ffmpeg_microphone_live(
-        sampling_rate=sampling_rate,
-        chunk_length_s=chunk_length_s,
-        stream_chunk_s=stream_chunk_s,
+    # Start monitoring output in a separate thread
+    monitor_thread = threading.Thread(
+        target=monitor_microphone_output, args=(output_buffer, stop_event)
     )
+    monitor_thread.start()
+    with redirect_stdout(output_buffer):
+        mic = ffmpeg_microphone_live(
+            sampling_rate=sampling_rate,
+            chunk_length_s=chunk_length_s,
+            stream_chunk_s=stream_chunk_s,
+        )
 
-    num_inferences = 1
-    phrase = ""
+        num_inferences = 1
+        phrase = ""
 
-    for item in transcriber(
-        mic,
-        generate_kwargs={
-            "max_new_tokens": 128,
-            "forced_decoder_ids": forced_decoder_ids,
-        },
-    ):
-        # Uncomment to see the prediction as it happens
-        # sys.stdout.write("\033[K")
-        log_to_output(str(item))
-        # print(item["text"], end="\r")
-        if num_inferences > 2 and item["text"][-1] == ".":
-            break
-        num_inferences += 1
-        if phrase == item["text"]:
-            break
-        phrase = item["text"]
-        # This if statement should never be hit for commands longer than a word
-        if not item["partial"][0]:
-            break
+        for item in transcriber(
+            mic,
+            generate_kwargs={
+                "max_new_tokens": 128,
+                "forced_decoder_ids": forced_decoder_ids,
+            },
+        ):
+            # Uncomment to see the prediction as it happens
+            # sys.stdout.write("\033[K")
+            log_to_output(str(item))
+            # print(item["text"], end="\r")
+            if num_inferences > 2 and item["text"][-1] == ".":
+                break
+            num_inferences += 1
+            if phrase == item["text"]:
+                break
+            phrase = item["text"]
+            # This if statement should never be hit for commands longer than a word
+            if not item["partial"][0]:
+                break
+    # Ensure the monitoring thread stops
+    stop_event.set()
+    monitor_thread.join()
 
     log_to_output("Finished transcribing")
     return item["text"]
@@ -130,10 +153,10 @@ def listen_for_wake_word(
             prediction = prediction[0]
             if prediction["label"] == wake_word:
                 if prediction["score"] > prob_threshold:
-                    log_to_output("Please say a command")
                     LSP_SERVER.send_notification(
-                        "custom/notification", {"content": "listen"}
+                        "custom/notification", {"content": "loading"}
                     )
+                    log_to_output("Please say a command")
                     result = transcribe(chunk_length_s=20.0)
                     log_to_output("You said: " + result)
                     command = text2command.findSimilarPhrases(
