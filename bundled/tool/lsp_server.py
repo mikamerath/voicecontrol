@@ -109,8 +109,8 @@ def transcribe(chunk_length_s=5.0, stream_chunk_s=0.75):
 # Listens for wake word (go) and calls transcribe
 def listen_for_wake_word(
     wake_word="go",
-    prob_threshold=0.8,
-    chunk_length_s=0.50,
+    prob_threshold=0.5,
+    chunk_length_s=0.5,
     stream_chunk_s=0.25,
     debug=False,
 ):
@@ -127,8 +127,11 @@ def listen_for_wake_word(
     log_to_output("Listening for wake word...")
     while True:
         for prediction in classifier(mic):
+            # Uncomment these lines to see the wake word prediction with score
+            # log_to_output(prediction[0]["label"])
+            # log_to_output(str(prediction[0]["score"]))
             prediction = prediction[0]
-            if prediction["label"] == wake_word:
+            if prediction["label"] == wake_word or prediction["label"] == "no":
                 if prediction["score"] > prob_threshold:
                     log_to_output("Please say a command")
                     LSP_SERVER.send_notification(
