@@ -7,6 +7,8 @@ or a list of suggested phrases for text that is ambiguous and does not match a p
 # Import the Natural Language Processing Library.
 import string
 import nltk
+
+nltk.download("punkt_tab")
 from nltk.tokenize import word_tokenize
 
 import commands
