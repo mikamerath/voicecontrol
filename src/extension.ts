@@ -269,6 +269,8 @@ class UIController {
     loading() {
         this.statusBarItem.text = '$(sync~loading)' + 'Voice Control : Waiting for activation word';
         this.statusBarItem.show();
+
+        FrontEndController.refreshStatusViewer();
     }
 }
 
