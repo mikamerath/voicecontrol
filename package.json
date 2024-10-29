@@ -69,6 +69,20 @@
                 }
             ]
         },
+        "menus": {
+            "view/title": [
+                {
+                    "command": "VoiceControl.showRemappingWindow",
+                    "when": "view == VoiceControl",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workbench.action.openGlobalSettings",
+                    "when": "view == VoiceControl",
+                    "group": "navigation"
+                }
+            ]
+        },
         "configuration": {
             "properties": {
                 "voice-control.args": {
@@ -135,6 +149,11 @@
                     "default": true,
                     "description": "Enable Command Suggestions"
                   },
+                  "voice-control.enableRenamingConfirmation": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable Renaming Confirmation"
+                  },
                   "voice-control.numberOfCommandSuggestions": {
                     "type": "number",
                     "default": 5,
@@ -156,7 +175,13 @@
             {
                 "command": "VoiceControl.showRemappingWindow",
                 "title": "Show Remapping Window",
-                "category": "Voice Control"
+                "category": "Voice Control",
+                "icon": "$(menu)" 
+            },
+            {
+                "command": "workbench.action.openGlobalSettings",
+                "title": "Show user settings",
+                "icon": "$(gear)"
             }
         ]
     },

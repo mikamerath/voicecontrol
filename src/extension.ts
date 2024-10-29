@@ -48,6 +48,8 @@ let listening = false;
 let invalidThemeSelected = '';
 
 let locale = vscode.env.language;
+const config = vscode.workspace.getConfiguration('voice-control');
+const enableRenamingConfirmation: Boolean = config.get('enableRenamingConfirmation') as boolean;
 
 let awaitingCommandArgument: boolean = false;
 let currentMultistepCommand: string = '';
@@ -329,8 +331,82 @@ function handleShowChosenCommand() {
 function handleRenamingCommandFinal(message: any /*locale: string,*/) {
     const alias = message.parameters[1];
 
-    uiController?.waitForActivation('Successfully renamed command to ' + alias);
+    const old_alias = message.parameters[2];
+
+    if (enableRenamingConfirmation) {
+        // Initial message with Confirm and Undo buttons
+        vscode.window
+            .showInformationMessage('Please confirm remapping to ' + alias, 'Confirm', 'Undo')
+            .then((selection) => {
+                if (selection === 'Confirm') {
+                    // Show new message with View remapping window and Exit buttons
+                    vscode.window
+                        .showInformationMessage('Action confirmed', 'View remapping window', 'Exit')
+                        .then((newSelection) => {
+                            if (newSelection === 'View remapping window') {
+                                // Code to open the remapping window here
+                                vscode.commands.executeCommand('VoiceControl.showRemappingWindow');
+                            } else if (newSelection === 'Exit') {
+                                showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
+                            }
+                        });
+                    uiController?.waitForActivation('Successfully renamed command to ' + alias);
+                } else if (selection === 'Undo') {
+                    vscode.window.showInformationMessage('Renaming undone');
+                    // Code to handle undo action here
+                    // if there is an old alias, reset command back to that
+                    undoCommandAlias(alias, old_alias);
+                    uiController?.waitForActivation('');
+                }
+            });
+    } else {
+        uiController?.waitForActivation('Successfully renamed command to ' + alias);
+        showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
+    }
     updateRemappingWindow();
+}
+
+function undoCommandAlias(alias: string, old_alias: string) {
+    const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+    const rawData = fs.readFileSync(filePath, 'utf8');
+    let parsedData = JSON.parse(rawData);
+
+    // If the command doesn't have an old alias, it doesn't need to be reverted just delete from file.
+    if (old_alias === '') {
+        const originalCommandName = parsedData.aliases[alias];
+        delete parsedData.aliases[alias];
+        delete parsedData.commands[originalCommandName];
+    }
+    // If there is an old alias, revert it back to its old remapping.
+    else {
+        const originalCommandName = parsedData.aliases[alias];
+        delete parsedData.aliases[alias];
+        parsedData.aliases[old_alias] = originalCommandName;
+        parsedData.commands[originalCommandName] = old_alias;
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
+    updateRemappingWindow();
+}
+
+async function wait(duration: number) {
+    return new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), duration);
+    });
+}
+
+function showTimedMessage(message: string, duration: number) {
+    vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: message,
+            cancellable: false,
+        },
+        async (_progress) => {
+            // Wait for the specified duration before dismissing the message
+            await wait(duration);
+        },
+    );
 }
 
 function handleNoCommandFound(parameters: string) {
