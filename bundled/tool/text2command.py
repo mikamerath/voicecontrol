@@ -275,6 +275,7 @@ def findSimilarPhrases(
         "ko": commands.commands_korean,
         "pl": commands.commands_polish,
         "cs": commands.commands_czech,
+        "zh-cn": commands.commands_simplified_chinese,
     }
     commands_to_use = locale_to_commands[locale]
 
