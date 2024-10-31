@@ -30,6 +30,7 @@ import { commandNameToIDKo } from './command-mapping-ko';
 import { commandNameToIDPl } from './command-mapping-pl';
 import { commandNameToIDCs } from './command-mapping-cs';
 import { commandNameToIDDe } from './command-mapping-de';
+import { commandNameToIDZhCn } from './command-mapping-zh-cn';
 import { FrontEndController } from './FrontEndController';
 import availableThemes from './color-themes';
 
@@ -193,6 +194,7 @@ function executeLocaleCommand(messageContent: string, locale: string) {
         pl: commandNameToIDPl,
         cs: commandNameToIDCs,
         de: commandNameToIDDe,
+        'zh-cn': commandNameToIDZhCn,
         default: commandNameToID,
     };
 
