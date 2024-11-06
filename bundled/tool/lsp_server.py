@@ -78,7 +78,7 @@ def monitor_microphone_output(output_buffer, stop_event):
     if system != "Windows":
         LSP_SERVER.send_notification("custom/notification", {"content": "listen"})
         stop_event.set()
-        
+
     while not stop_event.is_set():
         if "Using microphone:" in output_buffer.getvalue():
             LSP_SERVER.send_notification("custom/notification", {"content": "listen"})
