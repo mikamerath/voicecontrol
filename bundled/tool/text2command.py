@@ -143,7 +143,7 @@ def renameCommand(
                 del data["aliases"][old_alias]
         with open(path, "w") as file:
             json.dump(data, file, indent=4)
-        return [command, alias]
+        return [command, alias, old_alias]
     else:
         return ["Command not found", finalCommands[1]]
 
@@ -170,6 +170,10 @@ def searchForCommands(
     # Limit on number of suggested commands taken from configuration settings.
     commandLimit = numberCommandSuggestions
     commandCount = 0
+    if(enableSuggestions):
+        percentage = 0.80
+    else:
+        percentage = 0.66
     # Normal command process
     for phrase in commands_to_use:
         processedPhrase = set(__preprocessText(phrase))
@@ -187,7 +191,7 @@ def searchForCommands(
             return similarPhrase
         else:
             # This ensures that similar commands don't get automatically executed. Has to be superrr close.
-            if similarity >= 0.50:
+            if similarity >= percentage:
                 # Add for a suggestion
                 if enableSuggestions and numberCommandSuggestions > 0:
                     suggestedPhrases.append((similarity, phrase.split("\n")[0]))
@@ -233,10 +237,12 @@ def searchForCommands(
         finalCommands[0] = "Display command suggestions"
         if numberCommandSuggestions <= suggestedPhrases.__len__():
             for suggestion in suggestedPhrases[: -numberCommandSuggestions - 1 : -1]:
-                finalCommands.append(suggestion[1])
+                if suggestion[1] != "Rename Command...":
+                    finalCommands.append(suggestion[1])
         else:
             for suggestion in suggestedPhrases[::-1]:
-                finalCommands.append(suggestion[1])
+                if suggestion[1] != "Rename Command...":
+                    finalCommands.append(suggestion[1])
 
     # Exact command, suggested commands (lower index=most similar), or command not found.
     return finalCommands
@@ -269,6 +275,7 @@ def findSimilarPhrases(
         "ko": commands.commands_korean,
         "pl": commands.commands_polish,
         "cs": commands.commands_czech,
+        "zh-cn": commands.commands_simplified_chinese,
     }
     commands_to_use = locale_to_commands[locale]
 
@@ -285,18 +292,19 @@ def findSimilarPhrases(
                 finalCommands.append("Renaming Command: Final")
                 finalCommands.append(renamingInputs[0])
                 finalCommands.append(text)
-                commandAndAlias = renameCommand(
+                commandAndAliases = renameCommand(
                     finalCommands,
                     commands_to_use,
                     enableCommandSuggestions,
                     numberCommandSuggestions,
                 )
-                if commandAndAlias[0] == "Command not found":
+                if commandAndAliases[0] == "Command not found":
                     finalCommands[0] = "Command not renamed"
-                    finalCommands[1] = commandAndAlias[1]
+                    finalCommands[1] = commandAndAliases[1]
                 else:
-                    finalCommands[1] = commandAndAlias[0]
-                    finalCommands[2] = commandAndAlias[1]
+                    finalCommands[1] = commandAndAliases[0] # command
+                    finalCommands[2] = commandAndAliases[1] # new alias
+                    finalCommands.append(commandAndAliases[2]) # old alias if there is one or empty string if not
                 renamingInputs.clear()
                 isMultiStep = False
                 isRenamingCommand = False
