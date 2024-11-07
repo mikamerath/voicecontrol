@@ -43,7 +43,6 @@ const rootPath =
         : undefined;
 
 let lsClient: LanguageClient | undefined;
-let uiController: UIController | undefined;
 
 let listening = false;
 let invalidThemeSelected = '';
@@ -67,13 +66,13 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
     'Rename Command...': handleRenameCommand,
     'Rename Command: show chosen command': handleShowChosenCommand,
     wake: (/*message: any*/) => {
-        uiController?.waitForActivation('');
+        FrontEndController?.waitForActivation('');
     },
     loading: (/*message: any*/) => {
-        uiController?.loading();
+        FrontEndController?.loading();
     },
     listen: (/*message: any*/) => {
-        uiController?.listenForCommand();
+        FrontEndController?.listenForCommand();
     },
     // Add other commands here
 };
@@ -89,8 +88,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     updateRemappingWindow();
 
     FrontEndController.setUpFrontEnd();
-    //Make an instance of uiController for this session
-    uiController = new UIController();
 
     // Register the renaming custom command
     let renamedCommandInfo = vscode.commands.registerCommand(
@@ -224,57 +221,13 @@ function handleServerMessage(message: any) {
             break;
         default:
             executeLocaleCommand(message.content, locale);
-            uiController?.waitForActivation('');
+            FrontEndController?.waitForActivation('');
     }
 }
 
 export async function deactivate(): Promise<void> {
     if (lsClient) {
         await lsClient.stop();
-    }
-}
-
-class UIController {
-    private statusBarItem: vscode.StatusBarItem;
-
-    constructor() {
-        this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    }
-
-    waitForActivation(message: string) {
-        listening = false;
-        if (message !== '') {
-            FrontEndController.statusText = message;
-        } else {
-            FrontEndController.statusText = 'Voice Control : Waiting for activation word';
-        }
-        FrontEndController.color = 'blue';
-        this.statusBarItem.text = '$(mic)' + FrontEndController.statusText;
-        this.statusBarItem.show();
-
-        FrontEndController.refreshStatusViewer();
-        setTimeout(() => {
-            if (!listening) {
-                this.statusBarItem.text = '$(mic)' + 'Voice Control : Waiting for activation word';
-            }
-        }, 3000);
-    }
-
-    listenForCommand() {
-        listening = true;
-        FrontEndController.statusText = 'Voice Control : Listening for voice command...';
-        FrontEndController.color = 'green';
-        this.statusBarItem.text = '$(sync~spin)' + FrontEndController.statusText;
-        this.statusBarItem.show();
-
-        FrontEndController.refreshStatusViewer();
-    }
-
-    loading() {
-        this.statusBarItem.text = '$(sync~loading)' + 'Voice Control : Waiting for activation word';
-        this.statusBarItem.show();
-
-        FrontEndController.refreshStatusViewer();
     }
 }
 
@@ -323,11 +276,11 @@ function findMostSimilarTheme(themeName: string, themeList: string[], threshold:
 }
 
 function handleRenameCommand() {
-    uiController?.waitForActivation('Say activation word, then the command to rename');
+    FrontEndController?.waitForActivation('Say activation word, then the command to rename');
 }
 
 function handleShowChosenCommand() {
-    uiController?.waitForActivation('Say activation word, then the alias for the command');
+    FrontEndController?.waitForActivation('Say activation word, then the alias for the command');
 }
 
 function handleRenamingCommandFinal(message: any /*locale: string,*/) {
@@ -352,17 +305,17 @@ function handleRenamingCommandFinal(message: any /*locale: string,*/) {
                                 showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
                             }
                         });
-                    uiController?.waitForActivation('Successfully renamed command to ' + alias);
+                    FrontEndController?.waitForActivation('Successfully renamed command to ' + alias);
                 } else if (selection === 'Undo') {
                     vscode.window.showInformationMessage('Renaming undone');
                     // Code to handle undo action here
                     // if there is an old alias, reset command back to that
                     undoCommandAlias(alias, old_alias);
-                    uiController?.waitForActivation('');
+                    FrontEndController?.waitForActivation('');
                 }
             });
     } else {
-        uiController?.waitForActivation('Successfully renamed command to ' + alias);
+        FrontEndController?.waitForActivation('Successfully renamed command to ' + alias);
         showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
     }
     updateRemappingWindow();
@@ -412,27 +365,27 @@ function showTimedMessage(message: string, duration: number) {
 }
 
 function handleNoCommandFound(parameters: string) {
-    uiController?.waitForActivation('Command "' + parameters + '" does not exist');
+    FrontEndController?.waitForActivation('Command "' + parameters + '" does not exist');
 }
 
 function handleCommandNotRenamed(parameters: string) {
-    uiController?.waitForActivation('Command "' + parameters + '" does not exist, renaming failed');
+    FrontEndController?.waitForActivation('Command "' + parameters + '" does not exist, renaming failed');
 }
 
 function setMultiStepCommandState(command: string) {
     currentMultistepCommand = command;
     awaitingCommandArgument = true;
-    uiController?.waitForActivation('');
+    FrontEndController?.waitForActivation('');
 }
 
 function resetMultiStepCommandState() {
     awaitingCommandArgument = false;
     currentMultistepCommand = '';
     if (invalidThemeSelected !== '') {
-        uiController?.waitForActivation(invalidThemeSelected + ' is not a valid theme');
+        FrontEndController?.waitForActivation(invalidThemeSelected + ' is not a valid theme');
         invalidThemeSelected = '';
     } else {
-        uiController?.waitForActivation('');
+        FrontEndController?.waitForActivation('');
     }
 }
 function handleColorThemeCommand(message: any) {
@@ -574,9 +527,9 @@ async function handleCommandSuggestions(parameters: [], locale: string) {
         } else {
             vscode.commands.executeCommand(commandNameToID[selection]);
         }
-        uiController?.waitForActivation('');
+        FrontEndController?.waitForActivation('');
     } else {
-        uiController?.waitForActivation('');
+        FrontEndController?.waitForActivation('');
         return;
     }
 }
