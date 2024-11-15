@@ -7,35 +7,116 @@ import { getContext } from './extension';
 let iconPathBlue = vscode.Uri.file('');
 let iconPathGreen = vscode.Uri.file('');
 let iconPathGrey = vscode.Uri.file('');
+let iconPathMicUnmuted = vscode.Uri.file('');
+let iconPathMicMuted = vscode.Uri.file('');
 
 let voiceControlStatusViewer: VoiceControlStatusViewer;
 export class FrontEndController {
+    static statusText: string = 'Voice Control is starting up...';
+    static muteStatusText: string = 'Unmuted.';
+    static color: string = 'grey';
+    static muted: boolean = false;
+
+    static listening: boolean = false;
+
+    static statusBarItem: vscode.StatusBarItem;
+
     constructor() {}
 
-    static statusText: string = 'Voice Control is starting up...';
-    static color: string = 'grey';
-
     static setUpFrontEnd() {
+        FrontEndController.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+
         let context = getContext();
         iconPathBlue = vscode.Uri.file(context.asAbsolutePath('images/blue-circle.png'));
         iconPathGrey = vscode.Uri.file(context.asAbsolutePath('images/grey-circle.png'));
         iconPathGreen = vscode.Uri.file(context.asAbsolutePath('images/green-circle.png'));
+        iconPathMicUnmuted = vscode.Uri.file(context.asAbsolutePath('images/mic-unmuted.png'));
+        iconPathMicMuted = vscode.Uri.file(context.asAbsolutePath('images/mic-muted.png'));
 
         voiceControlStatusViewer = new VoiceControlStatusViewer();
         vscode.window.registerTreeDataProvider('VoiceControl', voiceControlStatusViewer);
+
+        vscode.commands.registerCommand('VoiceControl.toggleMute', () => {
+            FrontEndController.toggleMute();
+        });
+
+        FrontEndController.statusBarItem.command = 'VoiceControl.toggleMute';
+
         vscode.commands.registerCommand('VoiceControlStatusViewer.refresh', () => voiceControlStatusViewer.refresh());
+    }
+
+    static waitForActivation(message: string) {
+        this.listening = false;
+        if (message !== '') {
+            FrontEndController.statusText = message;
+        } else {
+            FrontEndController.statusText = 'Voice Control : Waiting for activation word';
+        }
+
+        let micIcon = '$(mic)' + '';
+
+        if (FrontEndController.muted) {
+            micIcon = '$(close)' + '';
+        }
+
+        FrontEndController.color = 'blue';
+        this.statusBarItem.text = micIcon + FrontEndController.statusText;
+        this.statusBarItem.show();
+
+        FrontEndController.refreshStatusViewer();
+        setTimeout(() => {
+            if (!this.listening) {
+                if (FrontEndController.muted) {
+                    micIcon = '$(close)' + '';
+                } else {
+                    micIcon = '$(mic)' + '';
+                }
+                this.statusBarItem.text = micIcon + 'Voice Control : Waiting for activation word';
+                FrontEndController.refreshStatusViewer();
+            }
+        }, 3000);
+    }
+
+    static loading() {
+        FrontEndController.statusBarItem.text = '$(sync~loading)' + 'Voice Control : Waiting for activation word';
+        FrontEndController.statusBarItem.show();
+
+        FrontEndController.refreshStatusViewer();
+    }
+
+    static listenForCommand() {
+        FrontEndController.listening = true;
+        FrontEndController.statusText = 'Voice Control : Listening for voice command...';
+        FrontEndController.color = 'green';
+        FrontEndController.statusBarItem.text = '$(sync~spin)' + FrontEndController.statusText;
+        FrontEndController.statusBarItem.show();
+        FrontEndController.refreshStatusViewer();
     }
 
     static refreshStatusViewer() {
         voiceControlStatusViewer.refresh();
     }
 
+    static toggleMute() {
+        FrontEndController.muted = !FrontEndController.muted;
+
+        FrontEndController.muteStatusText = FrontEndController.muted ? 'Muted.' : 'Unmuted.';
+
+        let micIcon = '';
+        if (FrontEndController.muted) {
+            micIcon = '$(close)' + '';
+        } else {
+            micIcon = '$(mic)' + '';
+        }
+        this.statusBarItem.text = micIcon + 'Voice Control : Waiting for activation word';
+
+        FrontEndController.refreshStatusViewer();
+    }
+
     static getVCRemappingContent(): string {
         let context = getContext();
         let originalCommands: string[] = [''];
         let renamedCommands: string[] = [''];
-
-        const backgroundColor = new vscode.ThemeColor('editor.background');
 
         originalCommands.pop(); // Removing the empty element added initially
         renamedCommands.pop();
@@ -62,7 +143,8 @@ export class FrontEndController {
             parsedCommandList += `
             <div class="menu-item" data-index="${i}">
                 <span class="original-command">${originalCommands[i]}</span>
-                <span>${renamedCommands[i]}</span>
+                <span class="arrow">→</span>
+                <span class="renamed-command">${renamedCommands[i]}</span>
             </div>`;
         }
         parsedCommandList += '</div>'; // Close the command list container
@@ -75,73 +157,103 @@ export class FrontEndController {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Remapping Window</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            height: 100vh;
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-button-foreground);
-        }
-        .message-box {
-            margin-top: 50px;
-            text-align: center;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            border: 1px solid var(vscode--editor-background);
-            width: 400px;
-            position: relative; /* Allows child elements to position themselves relative to this */
-        }
-        .message-box .background-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--vscode-editor-background);
-            z-index: -1; /* Keep this behind the text */
-            border-radius: 8px;
-        }
-        .message-box h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: var(--vscode-editor-foreground);
-            position: relative;
-        }
-        .command-list {
-            margin-top: 20px;
-            background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-editor-foreground);
-            border-radius: 8px;
-            padding: 15px;
-            position: relative;
-        }
-        .menu-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border-radius: 4px;
-        }
-        .menu-item input {
-            background-color: var(--vscode-button-background);
-            filter: brightness(0.5); /* Darken the background */
-            color: var(--vscode-button-foreground);
-            border: none;
-            border-bottom: 1px solid #569cd6;
-            outline: none;
-            width: 100%;
-        }
-        span {
-            color: var(--vscode-button-foreground);
-        }
-    </style>
+<style>
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--vscode-editor-background);
+        color: var(--vscode-button-foreground);
+        padding: 0;
+    }
+
+    .message-box {
+        justify-content: center;
+        width: 50%;
+        max-width: none;
+        margin-top: 20px;
+        text-align: left;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--vscode-editor-background);
+        position: relative;
+    }
+
+    .message-box .background-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--vscode-editor-background);
+        z-index: -1;
+        border-radius: 8px;
+    }
+
+    .message-box h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: var(--vscode-editor-foreground);
+    }
+
+    .command-list {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 80%;
+        max-width: 600px;
+        margin: 0 auto 15px;
+        font-size: 18px;
+        color: var(--vscode-editor-foreground);
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-editor-foreground);
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    .menu-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 15px;
+        margin-bottom: 8px;
+        background-color: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+        border-radius: 4px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .original-command, .renamed-command {
+        flex: 1;
+        font-size: 16px;
+        color: var(--vscode-button-foreground);
+    }
+
+    .arrow{
+        .font-size: 18px;
+        margin: 0 10px;
+        color: var(--vscode-editor-foreground);
+    }
+
+    .menu-item span, .menu-item input {
+        font-size: 16px;
+        color: var(--vscode-button-foreground);
+        flex: 1;
+        text-align: left;
+    }
+
+    .menu-item input {
+        background-color: var(--vscode-button-background);
+        border: none;
+        outline: none;
+        border-bottom: 1px solid #569cd6;
+    }
+</style>
+
 </head>
 <body>
     <div class="message-box">
@@ -232,7 +344,7 @@ export class FrontEndController {
         h1 {
             font-size: 24px;
             margin-bottom: 10px;
-            color: #569cd6; /* Light blue to match VSCode dark theme highlights */
+            color: #569cd6;
         }
         p {
             font-size: 16px;
@@ -258,40 +370,62 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
     readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> =
         this._onDidChangeTreeData.event;
 
-    private newTreeItem: vscode.TreeItem;
+    private statusIcon: vscode.TreeItem;
+    private muteIcon: vscode.TreeItem;
 
     constructor() {
-        this.newTreeItem = new vscode.TreeItem(FrontEndController.statusText, vscode.TreeItemCollapsibleState.Expanded);
-        this.newTreeItem.tooltip = 'Displays a status update for the Voice Control extension.';
-        this.newTreeItem.iconPath = iconPathBlue; // Assign the icon path to the tree item
+        this.statusIcon = new vscode.TreeItem(FrontEndController.statusText, vscode.TreeItemCollapsibleState.Expanded);
+        this.statusIcon.tooltip = 'Displays a status update for the Voice Control extension.';
+        this.statusIcon.iconPath = iconPathBlue; // Assign the icon path to the tree item
+
+        this.muteIcon = new vscode.TreeItem(
+            FrontEndController.muteStatusText,
+            vscode.TreeItemCollapsibleState.Expanded,
+        );
+        this.muteIcon.tooltip = 'Enabled status for your microphone.';
+        this.muteIcon.iconPath = iconPathMicUnmuted;
+
+        this.muteIcon.command = { command: 'VoiceControl.toggleMute', title: 'Toggle Mute' };
     }
 
     getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
-        this.newTreeItem.label = FrontEndController.statusText;
-        this.updateColor();
+        this.statusIcon.label = FrontEndController.statusText;
+        this.muteIcon.label = FrontEndController.muteStatusText;
+        this.updateIcons();
         return element;
     }
 
     getChildren(element?: vscode.TreeItem): vscode.ProviderResult<vscode.TreeItem[]> {
-        this.newTreeItem.label = FrontEndController.statusText;
-        this.updateColor();
+        this.statusIcon.label = FrontEndController.statusText;
+        this.muteIcon.label = FrontEndController.muteStatusText;
+        this.updateIcons();
         if (!element) {
-            return [this.newTreeItem];
+            return [this.statusIcon, this.muteIcon];
         }
 
         return [];
     }
 
-    updateColor() {
+    updateIcons() {
         switch (FrontEndController.color) {
             case 'blue':
-                this.newTreeItem.iconPath = iconPathBlue;
+                this.statusIcon.iconPath = iconPathBlue;
                 break;
             case 'grey':
-                this.newTreeItem.iconPath = iconPathGrey;
+                this.statusIcon.iconPath = iconPathGrey;
                 break;
             case 'green':
-                this.newTreeItem.iconPath = iconPathGreen;
+                this.statusIcon.iconPath = iconPathGreen;
+                break;
+        }
+
+        switch (FrontEndController.muted) {
+            case true:
+                this.muteIcon.iconPath = iconPathMicMuted;
+                break;
+
+            case false:
+                this.muteIcon.iconPath = iconPathMicUnmuted;
                 break;
         }
     }
