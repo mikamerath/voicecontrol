@@ -5,7 +5,7 @@ convert_locale_language = {
     "ja": "japanese",
     "es": "spanish",
     "it": "italian",
-    "pt-br": "portugese",
+    "pt-br": "portuguese",
     "ru": "russian",
     "ko": "korean",
     "fr": "french",
@@ -1666,6 +1666,7 @@ commands = [
     "WSL: Show Log",
 ]
 commands_turkish = [
+    "Komutu Yeniden Adlandır...",
     ".NET: Çözüm Klasörünü Yeniden Adlandır...",
     ".NET: Yeniden Adlandır...",
     "Accept Inline Edit",
@@ -3393,6 +3394,7 @@ commands_turkish = [
     "Yüklemeyi Çalıştır",
 ]
 commands_spanish = [
+    "Cambiar Nombre Del Comando...",
     "Abrir definición en el lateral",
     "Abrir la ayuda de accesibilidad",
     "Abrir nuevo terminal externo",
@@ -5275,6 +5277,7 @@ commands_spanish = [
     "WSL: Volver a abrir carpeta en WSL",
 ]
 commands_portuguese = [
+    "Renomear Comando...",
     "Abrir a Ajuda de Acessibilidade",
     "Abrir Definição ao Lado",
     "Abrir Modo de Exibição Acessível",
@@ -7154,6 +7157,7 @@ commands_portuguese = [
     "WSL: Remover Pasta Recente",
 ]
 commands_french = [
+    "Renommer La Commande...",
     "Accéder à la ligne/colonne...",
     "Accéder à la modification précédente",
     "Accéder à la modification suivante",
@@ -10505,6 +10509,7 @@ commands_italian = [
     "Visualizzare la richiesta come cURL",
 ]
 commands_hungarian = [
+    "Parancs Átnevezése...",
     "Accept Inline Completion",
     "Accept Inline Edit",
     "Accept Inline Suggestion",
@@ -12296,6 +12301,7 @@ commands_hungarian = [
 ]
 
 commands_russian = [
+    "Переименовать команду...",
     "Автоисправление...",
     "Активация режима специальных возможностей для средства чтения с экрана",
     "Активация режима специальных возможностей для средства чтения с экрана",
@@ -14056,6 +14062,7 @@ commands_russian = [
     'WSL: Удалить папку "Недавние"',
 ]
 commands_japanese = [
+    "コマンドの名前を変更...",
     "[ページを下に] ホバー",
     "[ページを下に] ホバー",
     "[ページを上に] ホバー",
@@ -15817,6 +15824,7 @@ commands_japanese = [
 ]
 
 commands_korean = [
+    "명령 이름 바꾸기...",
     "<Tab> 키로 포커스 이동 설정/해제",
     "가리키기 또는 포커스 표시",
     "가져오기 구성",
@@ -17577,6 +17585,7 @@ commands_korean = [
     "XHR/fetch 중단점 편집",
 ]
 commands_polish = [
+    "Zmień Nazwę Polecenia...",
     "Accept Inline Edit",
     "Anuluj zakotwiczenie zaznaczenia",
     "C/C++: Przełączanie nagłówka/źródła",
@@ -19431,6 +19440,7 @@ commands_polish = [
     "Zwiń wszystkie różnice",
 ]
 commands_czech = [
+    "Přejmenovat Příkaz...",
     "Accept Inline Edit",
     "Aktivovat návrh",
     "Aktivovat návrh",
@@ -21189,6 +21199,7 @@ commands_czech = [
 ]
 
 commands_german = [
+    "Befehl Umbenennen...",
     "Accept Inline Edit",
     "Alle auffalten",
     "Alle auswählen",
@@ -23074,7 +23085,8 @@ commands_german = [
 ]
 
 commands_simplified_chinese = [
-'帮助: 键盘快捷方式参考',
+    '重命名命令...',
+    '帮助: 键盘快捷方式参考',
     '笔记本: 编辑单元格',
     '笔记本: 拆分单元格',
     '笔记本: 单元格光标 Page Down',

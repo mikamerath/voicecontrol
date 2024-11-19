@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { getContext } from './extension';
+import { lsClient } from './extension';
+import { setMutedState } from './extension';
 
 let iconPathBlue = vscode.Uri.file('');
 let iconPathGreen = vscode.Uri.file('');
@@ -45,51 +47,36 @@ export class FrontEndController {
         vscode.commands.registerCommand('VoiceControlStatusViewer.refresh', () => voiceControlStatusViewer.refresh());
     }
 
-    static waitForActivation(message: string) {
+    static waitForActivation(message: string = '') {
         this.listening = false;
-        if (message !== '') {
-            FrontEndController.statusText = message;
-        } else {
-            FrontEndController.statusText = 'Voice Control : Waiting for activation word';
-        }
-
-        let micIcon = '$(mic)' + '';
-
-        if (FrontEndController.muted) {
-            micIcon = '$(close)' + '';
-        }
 
         FrontEndController.color = 'blue';
-        this.statusBarItem.text = micIcon + FrontEndController.statusText;
-        this.statusBarItem.show();
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
+
+        if (message !== '') {
+            FrontEndController.statusText = message;
+        }
 
         FrontEndController.refreshStatusViewer();
         setTimeout(() => {
             if (!this.listening) {
-                if (FrontEndController.muted) {
-                    micIcon = '$(close)' + '';
-                } else {
-                    micIcon = '$(mic)' + '';
-                }
-                this.statusBarItem.text = micIcon + 'Voice Control : Waiting for activation word';
                 FrontEndController.refreshStatusViewer();
             }
         }, 3000);
     }
 
     static loading() {
-        FrontEndController.statusBarItem.text = '$(sync~loading)' + 'Voice Control : Waiting for activation word';
-        FrontEndController.statusBarItem.show();
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
 
         FrontEndController.refreshStatusViewer();
     }
 
     static listenForCommand() {
         FrontEndController.listening = true;
-        FrontEndController.statusText = 'Voice Control : Listening for voice command...';
+
         FrontEndController.color = 'green';
-        FrontEndController.statusBarItem.text = '$(sync~spin)' + FrontEndController.statusText;
-        FrontEndController.statusBarItem.show();
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
+
         FrontEndController.refreshStatusViewer();
     }
 
@@ -108,8 +95,10 @@ export class FrontEndController {
         } else {
             micIcon = '$(mic)' + '';
         }
-        this.statusBarItem.text = micIcon + 'Voice Control : Waiting for activation word';
 
+        setMutedState(FrontEndController.muted);
+
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
         FrontEndController.refreshStatusViewer();
     }
 
@@ -145,6 +134,7 @@ export class FrontEndController {
                 <span class="original-command">${originalCommands[i]}</span>
                 <span class="arrow">→</span>
                 <span class="renamed-command">${renamedCommands[i]}</span>
+                <button onClick="handleDelete(${i})">Remove</button>
             </div>`;
         }
         parsedCommandList += '</div>'; // Close the command list container
@@ -259,11 +249,25 @@ export class FrontEndController {
     <div class="message-box">
         <div class="background-overlay"></div> <!-- This div applies the darkened background -->
         <h1>Remap Voice Bindings</h1>
+        <button class="menu-item" onClick="handleClearAll()" >Clear All</button>
         ${parsedCommandList} <!-- Inject the dynamically generated command list here -->
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
+
+        function handleDelete(index) {
+            vscode.postMessage({
+                command: 'delete',
+                index: index
+            });
+        }
+
+        function handleClearAll() {
+            vscode.postMessage({
+                command: 'clear',
+            }); 
+        }
 
         function handleRename(newValue, index) {
             vscode.postMessage({
@@ -276,6 +280,7 @@ export class FrontEndController {
         document.querySelectorAll('.menu-item').forEach((item) => {
             const originalSpan = item.querySelector('.original-command');
             const index = item.dataset.index;
+            const removeButton = item.querySelector('.remove-button');
 
             originalSpan.addEventListener('click', function () {
                 const currentText = originalSpan.innerText;
@@ -422,11 +427,56 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
         switch (FrontEndController.muted) {
             case true:
                 this.muteIcon.iconPath = iconPathMicMuted;
+                this.statusIcon.iconPath = iconPathGrey;
                 break;
 
             case false:
                 this.muteIcon.iconPath = iconPathMicUnmuted;
                 break;
+        }
+    }
+
+    static updateStatusBarText() {
+        let micIcon = '$(mic)' + '';
+
+        if (FrontEndController.muted) {
+            micIcon = '$(close)' + '';
+        }
+
+        switch (FrontEndController.color) {
+            case 'blue':
+                FrontEndController.statusBarItem.text = micIcon + ' waiting for activation word.';
+                FrontEndController.statusBarItem.show();
+                return;
+            case 'grey':
+                FrontEndController.statusBarItem.text = micIcon + ' starting up...';
+                return;
+            case 'green':
+                FrontEndController.statusBarItem.text = '$(sync~spin)' + ' listening for voice command...';
+                FrontEndController.statusBarItem.show();
+                return;
+
+            default:
+                return 'Voice Control';
+        }
+    }
+
+    static getIconStatusText(): string {
+        VoiceControlStatusViewer.updateStatusBarText();
+        if (FrontEndController.muted) {
+            return 'Muted';
+        }
+
+        switch (FrontEndController.color) {
+            case 'blue':
+                return 'Voice Control : Waiting for activation word.';
+            case 'grey':
+                return 'Voice Control : Starting up...';
+                break;
+            case 'green':
+                return 'Voice Control : Listening for voice command...';
+            default:
+                return 'Voice Control';
         }
     }
 
