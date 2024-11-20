@@ -74,7 +74,7 @@ def __setMultiStep(text):
 def __searchForAlias(text):
     extension_path = os.path.dirname(
         __file__
-    )  # This assumes the script is in the `src` directory
+    )
     path = os.path.join(extension_path, "renaming.json")
 
     if not os.path.exists(path):
@@ -98,7 +98,30 @@ def __searchForAlias(text):
             return command
         else:
             return ""
+        
+        
+def __searchForCommandGroup(text):
+    extension_path = os.path.dirname(__file__)
+    path = os.path.join(extension_path, "command_groups.json")
 
+    # If the JSON file doesn't exist, create it with default data 
+    if not os.path.exists(path):
+        default_data = []
+
+        with open(path, "w") as renaming_file:
+            json.dump(default_data, renaming_file, indent=2)
+
+    # Load the JSON data
+    with open(path, "r") as renaming_file:
+        data = json.load(renaming_file)
+    translator = str.maketrans("", "", string.punctuation)
+    cleaned_text = text.translate(translator).lower().strip().title()
+    # Search for the command group by name
+    for group in data:
+        if group["name"].lower() == cleaned_text.lower():
+            return group["commands"]
+
+    return ""  # Return an empty string if the name doesn't exist
 
 def renameCommand(
     finalCommands,
@@ -319,6 +342,7 @@ def findSimilarPhrases(
     processedText = set(__preprocessText(text))
     # Check for an alias match first.
     command_from_alias = __searchForAlias(text)
+    command_from_commandGroups = __searchForCommandGroup(text)
     if command_from_alias:
         finalCommands.append(command_from_alias)
         # Check if this is a renaming command
@@ -328,6 +352,11 @@ def findSimilarPhrases(
             isRenamingCommand = True
         # Check if this is a multi-step command
         __setMultiStep(finalCommands[0])
+        return finalCommands
+    command_from_commandGroups = __searchForCommandGroup(text)
+    if command_from_commandGroups:
+        finalCommands.append("Command Group")
+        finalCommands.append(command_from_commandGroups)       
     else:
         finalCommands = searchForCommands(
             processedText,

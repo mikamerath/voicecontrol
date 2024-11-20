@@ -186,6 +186,7 @@ def listen_for_wake_word(
                     elif (
                         command[0] == "Renaming Command: Final"
                         or command[0] == "Display command suggestions"
+                        or command[0] == "Command Group"
                     ):
                         LSP_SERVER.send_notification(
                             "custom/notification",

@@ -32,6 +32,7 @@ import { commandNameToIDCs } from './command-mapping-cs';
 import { commandNameToIDDe } from './command-mapping-de';
 import { commandNameToIDZhCn } from './command-mapping-zh-cn';
 import { FrontEndController } from './FrontEndController';
+import { showCommandGroups } from './CommandGroupsFrontEnd';
 import availableThemes from './color-themes';
 
 import * as fs from 'fs';
@@ -104,13 +105,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     serverId = serverInfo.module;
 
     extensionContext = context;
-
     updateRemappingWindow();
 
     FrontEndController.setUpFrontEnd();
 
     // Register the renaming custom command
     let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', () => {});
+
+    // Register the "Command Groups Window" command
+    const disposable = vscode.commands.registerCommand('VoiceControl.commandGroupsWindow', () => {
+        showCommandGroups(context);
+    });
+    // Add the command to the subscriptions array so it is disposed of automatically
+    context.subscriptions.push(disposable);
 
     // Setup logging
     outputChannel = createOutputChannel(serverName);
@@ -246,6 +253,9 @@ function handleServerMessage(message: any) {
         case 'Display command suggestions':
             handleCommandSuggestions(message.parameters, locale);
             break;
+        case 'Command Group':
+            handleCommandGroups(message.parameters, locale);
+            break;
         default:
             executeLocaleCommand(message.content, locale);
             FrontEndController?.waitForActivation('');
@@ -346,6 +356,13 @@ function handleRenamingCommandFinal(message: any /*locale: string,*/) {
         showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
     }
     updateRemappingWindow();
+}
+
+function handleCommandGroups(message: any /*locale: string,*/, locale: string) {
+    for (const command of message[0]) {
+        executeLocaleCommand(command, locale);
+    }
+    FrontEndController?.waitForActivation('');
 }
 
 function undoCommandAlias(alias: string, old_alias: string) {
