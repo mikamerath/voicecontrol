@@ -12,3 +12,4 @@ bundled/tool/renaming.json
 **/__pycache__
 **/.pytest_cache
 **/.vs
+bundled/tool/command_groups.json

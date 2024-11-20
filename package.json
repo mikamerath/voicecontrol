@@ -179,6 +179,12 @@
                 "icon": "$(menu)" 
             },
             {
+                "command": "VoiceControl.commandGroupsWindow",
+                "title": "Command Groups Window",
+                "category": "Voice Control",
+                "icon": "$(menu)" 
+            },
+            {
                 "command": "workbench.action.openGlobalSettings",
                 "title": "Show user settings",
                 "icon": "$(gear)"
