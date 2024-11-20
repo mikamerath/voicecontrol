@@ -162,6 +162,8 @@ export class FrontEndController {
 
     .message-box {
         justify-content: center;
+        display: flex;
+        flex-direction: column;
         width: 50%;
         max-width: none;
         margin-top: 20px;
@@ -242,6 +244,27 @@ export class FrontEndController {
         outline: none;
         border-bottom: 1px solid #569cd6;
     }
+
+    .menu-item button {
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    #searchInput {
+        background-color: var(--vscode-button-background);
+        border: none;
+        outline: none;
+        border-bottom: 1px solid #569cd6;
+        text-align: center;
+        margin-bottom: 8px;
+        color: white;
+
+    }
+
+    ::placeholder {
+        color: white;
+      }
+
 </style>
 
 </head>
@@ -249,7 +272,8 @@ export class FrontEndController {
     <div class="message-box">
         <div class="background-overlay"></div> <!-- This div applies the darkened background -->
         <h1>Remap Voice Bindings</h1>
-        <button class="menu-item" onClick="handleClearAll()" >Clear All</button>
+        <button class="menu-item" onClick="handleClearAll()">Clear All</button>
+        <input type="text" id="searchInput" placeholder="Search...">
         ${parsedCommandList} <!-- Inject the dynamically generated command list here -->
     </div>
 
@@ -311,6 +335,25 @@ export class FrontEndController {
                 input.focus();
             });
         });
+    </script>
+    <script>
+        function handleSearchInput(value) {
+            
+            const menuItems = document.querySelectorAll(".command-list .menu-item");
+
+            menuItems.forEach(item => {
+                const alias = item.querySelector(".original-command").textContent.toLowerCase();
+                const command = item.querySelector(".renamed-command").textContent.toLowerCase();
+            
+                if (alias.includes(value.toLowerCase()) || command.includes(value.toLowerCase())) {
+                    item.style.display = "block";
+                } else {
+                    item.style.display = "none";
+                }
+            });
+        }
+        const searchInput = document.getElementById("searchInput");
+        searchInput.oninput = function() {handleSearchInput(searchInput.value)};
     </script>
 </body>
 </html>

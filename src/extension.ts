@@ -572,19 +572,34 @@ function renameAlias(newName: string, index: number) {
 }
 
 function clearAllRemappings() {
-    const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
-    const rawData = fs.readFileSync(filePath, 'utf8');
-    let parsedData = JSON.parse(rawData);
+    vscode.window
+        .showInputBox({
+            prompt: 'Type "YES" to confirm you want to clear all. This action cannot be undone.',
+            placeHolder: 'Type YES to confirm',
+            validateInput: (input) => {
+                return input.toUpperCase() === 'YES' ? null : 'You must type "YES" to confirm.';
+            },
+        })
+        .then((input) => {
+            if (input && input.toUpperCase() === 'YES') {
+                const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+                const rawData = fs.readFileSync(filePath, 'utf8');
+                let parsedData = JSON.parse(rawData);
 
-    for (const section in parsedData) {
-        for (const remapping in parsedData[section]) {
-            delete parsedData[section][remapping];
-        }
-    }
+                for (const section in parsedData) {
+                    for (const remapping in parsedData[section]) {
+                        delete parsedData[section][remapping];
+                    }
+                }
 
-    fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
+                fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
 
-    updateRemappingWindow();
+                updateRemappingWindow();
+                vscode.window.showInformationMessage('All items have been cleared!');
+            } else {
+                vscode.window.showInformationMessage('Action canceled.');
+            }
+        });
 }
 
 async function handleCommandSuggestions(parameters: [], locale: string) {
