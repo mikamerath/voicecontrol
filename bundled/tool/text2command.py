@@ -19,6 +19,8 @@ import string
 isMultiStep = False
 isRenamingCommand = False
 renamingInputs = []
+renameCommandSet = {"Rename Command...","Rinomina Comando...","Komutu Yeniden Adlandır...","Cambiar Nombre Del Comando...","Renomear Comando...","Renommer La Commande...","Parancs Átnevezése...","Переименовать команду...","コマンドの名前を変更...","명령 이름 바꾸기...","Zmień Nazwę Polecenia...","Přejmenovat Příkaz...","Befehl Umbenennen...",'重命名命令...'}
+
 
 """This helper method takes the text (text produced from the speech to text model)
 and processes it to get rid of extra characters like punctuation."""
@@ -340,7 +342,7 @@ def findSimilarPhrases(
     return finalCommands
 
 def determineIfRenameCommand(command):
-    match(command):
-        case "Rename Command..."|"Rinomina Comando..."|"Komutu Yeniden Adlandır..."|"Cambiar Nombre Del Comando..."|"Renomear Comando..."|"Renommer La Commande..."|"Parancs Átnevezése..."|"Переименовать команду..."|"コマンドの名前を変更..."|"명령 이름 바꾸기..."|"Zmień Nazwę Polecenia..."|"Přejmenovat Příkaz..."|"Befehl Umbenennen..."|'重命名命令...':
-            return True
+    global renameCommandSet
+    if command in renameCommandSet:
+        return True
     return False
