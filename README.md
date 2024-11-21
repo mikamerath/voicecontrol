@@ -6,7 +6,7 @@ A Python based extension that allows for the execution of VS Code commands by sp
 
 1. Install [Python](https://www.python.org/downloads/) on to your system. Version must be greater than Python 3.8 and less than Python 3.12. Be sure that your installed Python version is a part of your PATH variable
 
-1. Install [FFmpeg](https://ffmpeg.org/). Detailed instructions for installing and configuring ffmpeg to work with your system can be found [here](INSTALLING_FFMPEG.md).
+1. Install [FFmpeg](https://ffmpeg.org/). Detailed instructions for installing and configuring ffmpeg to work with your system can be found [here](installing_ffmpeg.md).
 
 1. Validate the installation of Python by running `python --version`.
 
@@ -31,10 +31,11 @@ Here is a gif showing zooming out, deleting a line, and zooming out again, all w
 
 ## Features
 
-- Configure which activation word you would like to use from a list of 27 words
-- Rename the spoken phrase to execute a command
-- Use any locale available to VS Code (coming soon)
-- Runs every command available to VS Code, even those added by other extensions
+- Executes every command available to VS Code
+- Rename spoken commands for easier interpretation
+- Available for all locales in VS Code
+- Completely cross platform (Windows, Mac, and Linux)
+- Organize commands into groups and execute with an alias
 
 
 ## Dependencies
@@ -47,7 +48,7 @@ Voice Control depends on the [Python extension](https://marketplace.visualstudio
 Voice Control will use the default microphone available to your OS.
 
 ## Supported Locales
-This extension is available in `en`
+This extension is available in `en`, `zh-cn`, `ja`, `es`, `it`, `pt-br`, `ru`, `ko`, `fr`, `de`, `pl`, `hu`, `cs`, `tr`
 
 ## Support for VS Code Dev
 Voice Control is not supported on [vscode.dev](https://vscode.dev/) and support is not planned for it.

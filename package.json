@@ -1,8 +1,9 @@
 {
     "name": "voice-control",
     "displayName": "VoiceControl",
-    "description": "Linting support for python files using `voice-control`.",
-    "version": "0.1.0-dev",
+    "description": "Control VS Code IDE with your voice.",
+    "icon": "images/Icon.png",
+    "version": "1.0.0",
     "preview": true,
     "serverInfo": {
         "name": "VoiceControl",
@@ -10,13 +11,13 @@
     },
     "publisher": "VoiceControlGroup",
     "license": "MIT",
-    "homepage": "https://github.com/<my-github>/<my-extension-project>",
+    "homepage": "https://github.com/mikamerath/voicecontrol",
     "repository": {
         "type": "git",
-        "url": "https://github.com/<my-github>/<my-extension-project>.git"
+        "url": "https://github.com/mikamerath/voicecontrol"
     },
     "bugs": {
-        "url": "https://github.com/<my-github>/<my-extension-project>/issues"
+        "url": "https://github.com/mikamerath/voicecontrol/issues"
     },
     "galleryBanner": {
         "color": "#1e415e",
@@ -24,7 +25,10 @@
     },
     "keywords": [
         "python",
-        "voice-control"
+        "voice-control",
+        "voice",
+        "speech",
+        "speak"
     ],
     "engines": {
         "vscode": "^1.78.0"
@@ -61,11 +65,11 @@
         "vsce-package": "vsce package -o voice-control.vsix"
     },
     "contributes": {
-        "views":{
+        "views": {
             "explorer": [
                 {
-                  "id": "VoiceControl",
-                  "name": "Voice Control"
+                    "id": "VoiceControl",
+                    "name": "Voice Control"
                 }
             ]
         },
@@ -85,88 +89,24 @@
         },
         "configuration": {
             "properties": {
-                "voice-control.args": {
-                    "default": [],
-                    "description": "Arguments passed in. Each argument is a separate item in the array.",
-                    "items": {
-                        "type": "string"
-                    },
-                    "scope": "resource",
-                    "type": "array"
-                },
-                "voice-control.path": {
-                    "default": [],
-                    "description": "When set to a path to voice-control binary, extension will use that. NOTE: Using this option may slowdown server response time.",
-                    "scope": "resource",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "voice-control.importStrategy": {
-                    "default": "useBundled",
-                    "description": "Defines where `voice-control` is imported from. This setting may be ignored if `<pytool-module>.path` is set.",
-                    "enum": [
-                        "useBundled",
-                        "fromEnvironment"
-                    ],
-                    "enumDescriptions": [
-                        "Always use the bundled version of `voice-control`.",
-                        "Use `voice-control` from environment, fallback to bundled version only if `<pytool-module>` not available in the environment."
-                    ],
-                    "scope": "window",
-                    "type": "string"
-                },
-                "voice-control.interpreter": {
-                    "default": [],
-                    "description": "When set to a path to python executable, extension will use that to launch the server and any subprocess.",
-                    "scope": "resource",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "voice-control.showNotifications": {
-                    "default": "off",
-                    "description": "Controls when notifications are shown by this extension.",
-                    "enum": [
-                        "off",
-                        "onError",
-                        "onWarning",
-                        "always"
-                    ],
-                    "enumDescriptions": [
-                        "All notifications are turned off, any errors or warning are still available in the logs.",
-                        "Notifications are shown only in the case of an error.",
-                        "Notifications are shown for errors and warnings.",
-                        "Notifications are show for anything that the server chooses to show."
-                    ],
-                    "scope": "machine",
-                    "type": "string"
-                }, 
                 "voice-control.enableCommandSuggestions": {
                     "type": "boolean",
                     "default": true,
                     "description": "Enable Command Suggestions"
-                  },
-                  "voice-control.enableRenamingConfirmation": {
+                },
+                "voice-control.enableRenamingConfirmation": {
                     "type": "boolean",
                     "default": false,
                     "description": "Enable Renaming Confirmation"
-                  },
-                  "voice-control.numberOfCommandSuggestions": {
+                },
+                "voice-control.numberOfCommandSuggestions": {
                     "type": "number",
                     "default": 5,
                     "description": "Number of Command Suggestions"
-                  }
+                }
             }
         },
         "commands": [
-            {
-                "title":"Restart Server",
-                "category": "Voice Control",
-                "command": "voice-control.restart"
-            },
             {
                 "command": "VoiceControl.renamedCommandInfo",
                 "title": "Renamed command info",
@@ -176,7 +116,7 @@
                 "command": "VoiceControl.showRemappingWindow",
                 "title": "Show Remapping Window",
                 "category": "Voice Control",
-                "icon": "$(menu)" 
+                "icon": "$(menu)"
             },
             {
                 "command": "VoiceControl.commandGroupsWindow",
