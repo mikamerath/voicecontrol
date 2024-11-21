@@ -68,9 +68,6 @@ let muted = false;
 
 // Command handler map
 const commandHandlers: { [key: string]: (message: any) => void } = {
-    'Preferences: Color Theme': handleColorThemeCommand,
-    'Go to Line/Column...': handleGoToLine,
-    'Go to File...': handleGoToFile,
     'Rename Command...': handleRenameCommand,
     'Rinomina Comando...': handleRenameCommand,
     'Komutu Yeniden Adlandır...': handleRenameCommand,
@@ -452,49 +449,7 @@ function resetMultiStepCommandState() {
         FrontEndController?.waitForActivation();
     }
 }
-function handleColorThemeCommand(message: any) {
-    if (awaitingCommandArgument) {
-        const config = vscode.workspace.getConfiguration();
-        // Ensures the theme selected by the user is in the right format
-        const selectedTheme = findMostSimilarTheme(message, availableThemes);
-        if (selectedTheme) {
-            config.update('workbench.colorTheme', selectedTheme, vscode.ConfigurationTarget.Global);
-        } else {
-            invalidThemeSelected = message;
-        }
-        executeCommand('workbench.action.closeQuickOpen');
-        resetMultiStepCommandState();
-    } else {
-        executeCommand('workbench.action.selectTheme');
-        setMultiStepCommandState(message);
-    }
-}
 
-function handleGoToLine(message: any) {
-    if (awaitingCommandArgument) {
-        //Closing it here because it's already open to let the user know they need to say a number
-        executeCommand('workbench.action.closeQuickOpen');
-        executeCommand('workbench.action.quickOpen', ':' + message);
-        executeCommand('workbench.action.acceptSelectedQuickOpenItem');
-        resetMultiStepCommandState();
-    } else {
-        executeCommand(commandNameToID[message]);
-        setMultiStepCommandState(message);
-    }
-}
-function handleGoToFile(message: any) {
-    if (awaitingCommandArgument) {
-        //Closing it here because it's already open since we want the user to see the list of files
-        executeCommand('workbench.action.closeQuickOpen');
-        // Inputs the chosen file name and selects the top option
-        executeCommand('workbench.action.quickOpen', message);
-        executeCommand('workbench.action.acceptSelectedQuickOpenItem');
-        resetMultiStepCommandState();
-    } else {
-        executeCommand(commandNameToID[message]);
-        setMultiStepCommandState(message);
-    }
-}
 function handleMessage(message: any): Boolean {
     if (muted && message !== 'wake') {
         FrontEndController?.waitForActivation();
