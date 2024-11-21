@@ -62,10 +62,9 @@ def __jaccardSimilarity(wordSet1, wordSet2):
 """Helper method that checks if text contains a multi-step command."""
 
 
-# A similarity near 1 indicates the two sets of words are very similar.
 def __setMultiStep(text):
     global isMultiStep
-    if "..." in text or "Preferences: Color Theme" in text:
+    if "..." in text:
         isMultiStep = True
     else:
         isMultiStep = False
