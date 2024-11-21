@@ -6,16 +6,21 @@ import { getContext } from './extension';
 import { lsClient } from './extension';
 import { setMutedState } from './extension';
 
+import { frontendTextLookup } from './frontend-text-mapping';
+import { frontendTextLookupEsp } from './frontend-text-mapping-esp';
+
 let iconPathBlue = vscode.Uri.file('');
 let iconPathGreen = vscode.Uri.file('');
 let iconPathGrey = vscode.Uri.file('');
 let iconPathMicUnmuted = vscode.Uri.file('');
 let iconPathMicMuted = vscode.Uri.file('');
 
+let locale = vscode.env.language;
+
 let voiceControlStatusViewer: VoiceControlStatusViewer;
 export class FrontEndController {
-    static statusText: string = 'Voice Control is starting up...';
-    static muteStatusText: string = 'Unmuted.';
+    static statusText: string = '';
+    static muteStatusText: string = '';
     static color: string = 'grey';
     static muted: boolean = false;
 
@@ -45,17 +50,16 @@ export class FrontEndController {
         FrontEndController.statusBarItem.command = 'VoiceControl.toggleMute';
 
         vscode.commands.registerCommand('VoiceControlStatusViewer.refresh', () => voiceControlStatusViewer.refresh());
+
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
+        this.muteStatusText = FrontEndController.getTranslatedText('isUnmuted');
     }
 
-    static waitForActivation(message: string = '') {
+    static waitForActivation() {
         this.listening = false;
 
         FrontEndController.color = 'blue';
         FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
-
-        if (message !== '') {
-            FrontEndController.statusText = message;
-        }
 
         FrontEndController.refreshStatusViewer();
         setTimeout(() => {
@@ -87,7 +91,9 @@ export class FrontEndController {
     static toggleMute() {
         FrontEndController.muted = !FrontEndController.muted;
 
-        FrontEndController.muteStatusText = FrontEndController.muted ? 'Muted.' : 'Unmuted.';
+        FrontEndController.muteStatusText = FrontEndController.muted
+            ? FrontEndController.getTranslatedText('isMuted')
+            : FrontEndController.getTranslatedText('isUnmuted');
 
         let micIcon = '';
         if (FrontEndController.muted) {
@@ -100,6 +106,17 @@ export class FrontEndController {
 
         FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
         FrontEndController.refreshStatusViewer();
+    }
+
+    static getTranslatedText(key: string) {
+        switch (locale) {
+            case 'es':
+                return frontendTextLookupEsp[key];
+                break;
+            default:
+                return frontendTextLookup[key];
+                break;
+        }
     }
 
     static getVCRemappingContent(): string {
@@ -488,14 +505,16 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
 
         switch (FrontEndController.color) {
             case 'blue':
-                FrontEndController.statusBarItem.text = micIcon + ' waiting for activation word.';
+                FrontEndController.statusBarItem.text =
+                    micIcon + FrontEndController.getTranslatedText('waitingForActivationWord');
                 FrontEndController.statusBarItem.show();
                 return;
             case 'grey':
-                FrontEndController.statusBarItem.text = micIcon + ' starting up...';
+                FrontEndController.statusBarItem.text = micIcon + FrontEndController.getTranslatedText('startingUp');
                 return;
             case 'green':
-                FrontEndController.statusBarItem.text = '$(sync~spin)' + ' listening for voice command...';
+                FrontEndController.statusBarItem.text =
+                    '$(sync~spin)' + FrontEndController.getTranslatedText('listeningForCommand');
                 FrontEndController.statusBarItem.show();
                 return;
 
@@ -507,19 +526,19 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
     static getIconStatusText(): string {
         VoiceControlStatusViewer.updateStatusBarText();
         if (FrontEndController.muted) {
-            return 'Muted';
+            return FrontEndController.getTranslatedText('isMuted');
         }
 
         switch (FrontEndController.color) {
             case 'blue':
-                return 'Voice Control : Waiting for activation word.';
+                return FrontEndController.getTranslatedText('waitingForActivationWord');
             case 'grey':
-                return 'Voice Control : Starting up...';
+                return FrontEndController.getTranslatedText('startingUp');
                 break;
             case 'green':
-                return 'Voice Control : Listening for voice command...';
+                return FrontEndController.getTranslatedText('listeningForCommand');
             default:
-                return 'Voice Control';
+                return 'Voice Control'; //Locale agnostic
         }
     }
 

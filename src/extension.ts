@@ -31,7 +31,7 @@ import { commandNameToIDPl } from './command-mapping-pl';
 import { commandNameToIDCs } from './command-mapping-cs';
 import { commandNameToIDDe } from './command-mapping-de';
 import { commandNameToIDZhCn } from './command-mapping-zh-cn';
-import { FrontEndController } from './FrontEndController';
+import { FrontEndController, VoiceControlStatusViewer } from './FrontEndController';
 import { showCommandGroups } from './CommandGroupsFrontEnd';
 import availableThemes from './color-themes';
 
@@ -86,13 +86,13 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
     'Befehl Umbenennen...': handleRenameCommand,
     '重命名命令...': handleRenameCommand,
     'Rename Command: show chosen command': handleShowChosenCommand,
-    wake: (/*message: any*/) => {
-        FrontEndController?.waitForActivation('');
+    wake: () => {
+        FrontEndController?.waitForActivation();
     },
-    loading: (/*message: any*/) => {
+    loading: () => {
         FrontEndController?.loading();
     },
-    listen: (/*message: any*/) => {
+    listen: () => {
         FrontEndController?.listenForCommand();
     },
     // Add other commands here
@@ -258,7 +258,7 @@ function handleServerMessage(message: any) {
             break;
         default:
             executeLocaleCommand(message.content, locale);
-            FrontEndController?.waitForActivation('');
+            FrontEndController?.waitForActivation();
     }
 }
 
@@ -313,17 +313,19 @@ function findMostSimilarTheme(themeName: string, themeList: string[], threshold:
 }
 
 function handleRenameCommand() {
-    FrontEndController?.waitForActivation('Say activation word, then the command to rename');
+    FrontEndController.waitForActivation();
+    FrontEndController.statusText = FrontEndController.getTranslatedText('sayActivationWordThenCommand');
 }
 
 function handleShowChosenCommand() {
-    FrontEndController?.waitForActivation('Say activation word, then the alias for the command');
+    FrontEndController.waitForActivation();
+    FrontEndController.statusText = FrontEndController.getTranslatedText('sayActivationWordThenAlias');
 }
 
 function handleRenamingCommandFinal(message: any /*locale: string,*/) {
     const alias = message.parameters[1];
 
-    const old_alias = message.parameters[2];
+    const oldAlias = message.parameters[2];
 
     if (enableRenamingConfirmation) {
         // Initial message with Confirm and Undo buttons
@@ -342,17 +344,22 @@ function handleRenamingCommandFinal(message: any /*locale: string,*/) {
                                 showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
                             }
                         });
-                    FrontEndController?.waitForActivation('Successfully renamed command to ' + alias);
+                    FrontEndController.statusText =
+                        FrontEndController.getTranslatedText('successfullyRenamedCommandTo') + alias;
+                    FrontEndController.waitForActivation();
                 } else if (selection === 'Undo') {
                     vscode.window.showInformationMessage('Renaming undone');
                     // Code to handle undo action here
                     // if there is an old alias, reset command back to that
-                    undoCommandAlias(alias, old_alias);
-                    FrontEndController?.waitForActivation('');
+
+                    undoCommandAlias(alias, oldAlias);
+                    FrontEndController?.waitForActivation();
                 }
             });
     } else {
-        FrontEndController?.waitForActivation('Successfully renamed command to ' + alias);
+        FrontEndController.statusText = FrontEndController.getTranslatedText('successfullyRenamedCommandTo') + alias;
+        FrontEndController.waitForActivation();
+
         showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
     }
     updateRemappingWindow();
@@ -362,16 +369,16 @@ function handleCommandGroups(message: any /*locale: string,*/, locale: string) {
     for (const command of message[0]) {
         executeLocaleCommand(command, locale);
     }
-    FrontEndController?.waitForActivation('');
+    FrontEndController?.waitForActivation();
 }
 
-function undoCommandAlias(alias: string, old_alias: string) {
+function undoCommandAlias(alias: string, oldAlias: string) {
     const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
     const rawData = fs.readFileSync(filePath, 'utf8');
     let parsedData = JSON.parse(rawData);
 
     // If the command doesn't have an old alias, it doesn't need to be reverted just delete from file.
-    if (old_alias === '') {
+    if (oldAlias === '') {
         const originalCommandName = parsedData.aliases[alias];
         delete parsedData.aliases[alias];
         delete parsedData.commands[originalCommandName];
@@ -380,8 +387,8 @@ function undoCommandAlias(alias: string, old_alias: string) {
     else {
         const originalCommandName = parsedData.aliases[alias];
         delete parsedData.aliases[alias];
-        parsedData.aliases[old_alias] = originalCommandName;
-        parsedData.commands[originalCommandName] = old_alias;
+        parsedData.aliases[oldAlias] = originalCommandName;
+        parsedData.commands[originalCommandName] = oldAlias;
     }
 
     fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
@@ -410,30 +417,39 @@ function showTimedMessage(message: string, duration: number) {
 
 function handleNoCommandFound(parameters: string) {
     if (muted) {
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
     } else {
-        FrontEndController?.waitForActivation('Command "' + parameters + '" does not exist');
+        FrontEndController?.waitForActivation();
+        FrontEndController.statusText = FrontEndController.getTranslatedText('couldNotFindCommand') + parameters;
     }
 }
 
 function handleCommandNotRenamed(parameters: string) {
-    FrontEndController?.waitForActivation('Command "' + parameters + '" does not exist, renaming failed');
+    FrontEndController?.waitForActivation();
+
+    FrontEndController.statusText =
+        FrontEndController.getTranslatedText('couldNotFindCommand') +
+        parameters +
+        FrontEndController.getTranslatedText('renamingFailed');
+    FrontEndController?.waitForActivation();
 }
 
 function setMultiStepCommandState(command: string) {
     currentMultistepCommand = command;
     awaitingCommandArgument = true;
-    FrontEndController?.waitForActivation('');
+    FrontEndController?.waitForActivation();
 }
 
 function resetMultiStepCommandState() {
     awaitingCommandArgument = false;
     currentMultistepCommand = '';
     if (invalidThemeSelected !== '') {
-        FrontEndController?.waitForActivation(invalidThemeSelected + ' is not a valid theme');
+        FrontEndController?.waitForActivation();
+        FrontEndController.statusText = invalidThemeSelected + FrontEndController.getTranslatedText('isNotAValidTheme');
+
         invalidThemeSelected = '';
     } else {
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
     }
 }
 function handleColorThemeCommand(message: any) {
@@ -481,7 +497,7 @@ function handleGoToFile(message: any) {
 }
 function handleMessage(message: any): Boolean {
     if (muted && message !== 'wake') {
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
         return false;
     }
 
@@ -621,7 +637,7 @@ function clearAllRemappings() {
 
 async function handleCommandSuggestions(parameters: [], locale: string) {
     if (muted) {
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
         return;
     }
 
@@ -638,9 +654,9 @@ async function handleCommandSuggestions(parameters: [], locale: string) {
         } else {
             executeCommand(commandNameToID[selection]);
         }
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
     } else {
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
         return;
     }
 }
