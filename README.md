@@ -14,6 +14,10 @@ A Python based extension that allows for the execution of VS Code commands by sp
 
 1. You are ready to start issuing commands.
 
+
+# [![Watch on YouTube](Thumbnail.png)](https://www.youtube.com/watch?v=cEFk0yZaCuw)
+
+
 ## Usage
 
 Once the extension has started, you should see that Voice Control is waiting for the activation word in the bottom left of the VS Code window. To start using the extension, speak the activation word (defaults to "go") to prepare the extension to listen to your command. 
