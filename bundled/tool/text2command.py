@@ -64,7 +64,7 @@ def __jaccardSimilarity(wordSet1, wordSet2):
 
 def __setMultiStep(text):
     global isMultiStep
-    if "..." in text:
+    if "Rename Command..." in text:
         isMultiStep = True
     else:
         isMultiStep = False
@@ -372,5 +372,6 @@ def findSimilarPhrases(
 def determineIfRenameCommand(command):
     global renameCommandSet
     if command in renameCommandSet:
+        isMultiStep = True
         return True
     return False
