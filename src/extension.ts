@@ -16,7 +16,7 @@ import { checkIfConfigurationChanged, getExtensionSettings, getInterpreterFromSe
 import { loadServerDefaults } from './common/setup';
 import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
-import { Console } from 'console';
+import { Console, debug } from 'console';
 import { commandNameToID } from './command-mapping';
 import { commandNameToIDIta } from './command-mapping-ita';
 import { commandNameToIDTr } from './command-mapping-tr';
@@ -31,7 +31,8 @@ import { commandNameToIDPl } from './command-mapping-pl';
 import { commandNameToIDCs } from './command-mapping-cs';
 import { commandNameToIDDe } from './command-mapping-de';
 import { commandNameToIDZhCn } from './command-mapping-zh-cn';
-import { FrontEndController } from './FrontEndController';
+import { FrontEndController, VoiceControlStatusViewer } from './FrontEndController';
+import { showCommandGroups } from './CommandGroupsFrontEnd';
 import availableThemes from './color-themes';
 
 import * as fs from 'fs';
@@ -43,8 +44,8 @@ const rootPath =
         : undefined;
 
 let lsClient: LanguageClient | undefined;
+export { lsClient };
 
-let listening = false;
 let invalidThemeSelected = '';
 
 let locale = vscode.env.language;
@@ -58,20 +59,37 @@ let renamingPanel: vscode.WebviewPanel | undefined;
 
 let extensionContext: vscode.ExtensionContext;
 
+let serverInfo = loadServerDefaults();
+let serverName = serverInfo.name;
+let serverId = serverInfo.module;
+let outputChannel = createOutputChannel(serverName);
+
+let muted = false;
+
 // Command handler map
 const commandHandlers: { [key: string]: (message: any) => void } = {
-    'Preferences: Color Theme': handleColorThemeCommand,
-    'Go to Line/Column...': handleGoToLine,
-    'Go to File...': handleGoToFile,
     'Rename Command...': handleRenameCommand,
+    'Rinomina Comando...': handleRenameCommand,
+    'Komutu Yeniden Adlandır...': handleRenameCommand,
+    'Cambiar Nombre Del Comando...': handleRenameCommand,
+    'Renomear Comando...': handleRenameCommand,
+    'Renommer La Commande...': handleRenameCommand,
+    'Parancs Átnevezése...': handleRenameCommand,
+    'Переименовать команду...': handleRenameCommand,
+    'コマンドの名前を変更...': handleRenameCommand,
+    '명령 이름 바꾸기...': handleRenameCommand,
+    'Zmień Nazwę Polecenia...': handleRenameCommand,
+    'Přejmenovat Příkaz...': handleRenameCommand,
+    'Befehl Umbenennen...': handleRenameCommand,
+    '重命名命令...': handleRenameCommand,
     'Rename Command: show chosen command': handleShowChosenCommand,
-    wake: (/*message: any*/) => {
-        FrontEndController?.waitForActivation('');
+    wake: () => {
+        FrontEndController?.waitForActivation();
     },
-    loading: (/*message: any*/) => {
+    loading: () => {
         FrontEndController?.loading();
     },
-    listen: (/*message: any*/) => {
+    listen: () => {
         FrontEndController?.listenForCommand();
     },
     // Add other commands here
@@ -79,24 +97,27 @@ const commandHandlers: { [key: string]: (message: any) => void } = {
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     // This is required to get server name and module. This should be
     // the first thing that we do in this extension.
-    const serverInfo = loadServerDefaults();
-    const serverName = serverInfo.name;
-    const serverId = serverInfo.module;
+    serverInfo = loadServerDefaults();
+    serverName = serverInfo.name;
+    serverId = serverInfo.module;
 
     extensionContext = context;
-
     updateRemappingWindow();
 
     FrontEndController.setUpFrontEnd();
 
     // Register the renaming custom command
-    let renamedCommandInfo = vscode.commands.registerCommand(
-        'VoiceControl.renamedCommandInfo',
-        (/*command, alias*/) => {},
-    );
+    let renamedCommandInfo = vscode.commands.registerCommand('VoiceControl.renamedCommandInfo', () => {});
+
+    // Register the "Command Groups Window" command
+    const disposable = vscode.commands.registerCommand('VoiceControl.commandGroupsWindow', () => {
+        showCommandGroups(context);
+    });
+    // Add the command to the subscriptions array so it is disposed of automatically
+    context.subscriptions.push(disposable);
 
     // Setup logging
-    const outputChannel = createOutputChannel(serverName);
+    outputChannel = createOutputChannel(serverName);
     extensionContext.subscriptions.push(outputChannel, registerLogger(outputChannel));
 
     const changeLogLevel = async (c: vscode.LogLevel, g: vscode.LogLevel) => {
@@ -198,7 +219,17 @@ function executeLocaleCommand(messageContent: string, locale: string) {
     const commandMap = localeCommandMap[locale] || localeCommandMap['default'];
     const command = commandMap[messageContent];
 
-    vscode.commands.executeCommand(command);
+    executeCommand(command);
+}
+
+function executeCommand(command: string, command2: string = '') {
+    if (!muted) {
+        if (command2 !== '') {
+            vscode.commands.executeCommand(command, command2);
+        } else {
+            vscode.commands.executeCommand(command);
+        }
+    }
 }
 
 function handleServerMessage(message: any) {
@@ -219,9 +250,12 @@ function handleServerMessage(message: any) {
         case 'Display command suggestions':
             handleCommandSuggestions(message.parameters, locale);
             break;
+        case 'Command Group':
+            handleCommandGroups(message.parameters, locale);
+            break;
         default:
             executeLocaleCommand(message.content, locale);
-            FrontEndController?.waitForActivation('');
+            FrontEndController?.waitForActivation();
     }
 }
 
@@ -276,17 +310,19 @@ function findMostSimilarTheme(themeName: string, themeList: string[], threshold:
 }
 
 function handleRenameCommand() {
-    FrontEndController?.waitForActivation('Say activation word, then the command to rename');
+    FrontEndController.waitForActivation();
+    FrontEndController.statusText = FrontEndController.getTranslatedText('sayActivationWordThenCommand');
 }
 
 function handleShowChosenCommand() {
-    FrontEndController?.waitForActivation('Say activation word, then the alias for the command');
+    FrontEndController.waitForActivation();
+    FrontEndController.statusText = FrontEndController.getTranslatedText('sayActivationWordThenAlias');
 }
 
 function handleRenamingCommandFinal(message: any /*locale: string,*/) {
     const alias = message.parameters[1];
 
-    const old_alias = message.parameters[2];
+    const oldAlias = message.parameters[2];
 
     if (enableRenamingConfirmation) {
         // Initial message with Confirm and Undo buttons
@@ -300,34 +336,46 @@ function handleRenamingCommandFinal(message: any /*locale: string,*/) {
                         .then((newSelection) => {
                             if (newSelection === 'View remapping window') {
                                 // Code to open the remapping window here
-                                vscode.commands.executeCommand('VoiceControl.showRemappingWindow');
+                                executeCommand('VoiceControl.showRemappingWindow');
                             } else if (newSelection === 'Exit') {
                                 showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
                             }
                         });
-                    FrontEndController?.waitForActivation('Successfully renamed command to ' + alias);
+                    FrontEndController.statusText =
+                        FrontEndController.getTranslatedText('successfullyRenamedCommandTo') + alias;
+                    FrontEndController.waitForActivation();
                 } else if (selection === 'Undo') {
                     vscode.window.showInformationMessage('Renaming undone');
                     // Code to handle undo action here
                     // if there is an old alias, reset command back to that
-                    undoCommandAlias(alias, old_alias);
-                    FrontEndController?.waitForActivation('');
+
+                    undoCommandAlias(alias, oldAlias);
+                    FrontEndController?.waitForActivation();
                 }
             });
     } else {
-        FrontEndController?.waitForActivation('Successfully renamed command to ' + alias);
+        FrontEndController.statusText = FrontEndController.getTranslatedText('successfullyRenamedCommandTo') + alias;
+        FrontEndController.waitForActivation();
+
         showTimedMessage("Say command 'Voice Control: Show Remapping Window'", 8000);
     }
     updateRemappingWindow();
 }
 
-function undoCommandAlias(alias: string, old_alias: string) {
+function handleCommandGroups(message: any /*locale: string,*/, locale: string) {
+    for (const command of message[0]) {
+        executeLocaleCommand(command, locale);
+    }
+    FrontEndController?.waitForActivation();
+}
+
+function undoCommandAlias(alias: string, oldAlias: string) {
     const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
     const rawData = fs.readFileSync(filePath, 'utf8');
     let parsedData = JSON.parse(rawData);
 
     // If the command doesn't have an old alias, it doesn't need to be reverted just delete from file.
-    if (old_alias === '') {
+    if (oldAlias === '') {
         const originalCommandName = parsedData.aliases[alias];
         delete parsedData.aliases[alias];
         delete parsedData.commands[originalCommandName];
@@ -336,8 +384,8 @@ function undoCommandAlias(alias: string, old_alias: string) {
     else {
         const originalCommandName = parsedData.aliases[alias];
         delete parsedData.aliases[alias];
-        parsedData.aliases[old_alias] = originalCommandName;
-        parsedData.commands[originalCommandName] = old_alias;
+        parsedData.aliases[oldAlias] = originalCommandName;
+        parsedData.commands[originalCommandName] = oldAlias;
     }
 
     fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
@@ -365,73 +413,49 @@ function showTimedMessage(message: string, duration: number) {
 }
 
 function handleNoCommandFound(parameters: string) {
-    FrontEndController?.waitForActivation('Command "' + parameters + '" does not exist');
+    if (muted) {
+        FrontEndController?.waitForActivation();
+    } else {
+        FrontEndController?.waitForActivation();
+        FrontEndController.statusText = FrontEndController.getTranslatedText('couldNotFindCommand') + parameters;
+    }
 }
 
 function handleCommandNotRenamed(parameters: string) {
-    FrontEndController?.waitForActivation('Command "' + parameters + '" does not exist, renaming failed');
+    FrontEndController?.waitForActivation();
+
+    FrontEndController.statusText =
+        FrontEndController.getTranslatedText('couldNotFindCommand') +
+        parameters +
+        FrontEndController.getTranslatedText('renamingFailed');
+    FrontEndController?.waitForActivation();
 }
 
 function setMultiStepCommandState(command: string) {
     currentMultistepCommand = command;
     awaitingCommandArgument = true;
-    FrontEndController?.waitForActivation('');
+    FrontEndController?.waitForActivation();
 }
 
 function resetMultiStepCommandState() {
     awaitingCommandArgument = false;
     currentMultistepCommand = '';
     if (invalidThemeSelected !== '') {
-        FrontEndController?.waitForActivation(invalidThemeSelected + ' is not a valid theme');
+        FrontEndController?.waitForActivation();
+        FrontEndController.statusText = invalidThemeSelected + FrontEndController.getTranslatedText('isNotAValidTheme');
+
         invalidThemeSelected = '';
     } else {
-        FrontEndController?.waitForActivation('');
-    }
-}
-function handleColorThemeCommand(message: any) {
-    if (awaitingCommandArgument) {
-        const config = vscode.workspace.getConfiguration();
-        // Ensures the theme selected by the user is in the right format
-        const selectedTheme = findMostSimilarTheme(message, availableThemes);
-        if (selectedTheme) {
-            config.update('workbench.colorTheme', selectedTheme, vscode.ConfigurationTarget.Global);
-        } else {
-            invalidThemeSelected = message;
-        }
-        vscode.commands.executeCommand('workbench.action.closeQuickOpen');
-        resetMultiStepCommandState();
-    } else {
-        vscode.commands.executeCommand('workbench.action.selectTheme');
-        setMultiStepCommandState(message);
+        FrontEndController?.waitForActivation();
     }
 }
 
-function handleGoToLine(message: any) {
-    if (awaitingCommandArgument) {
-        //Closing it here because it's already open to let the user know they need to say a number
-        vscode.commands.executeCommand('workbench.action.closeQuickOpen');
-        vscode.commands.executeCommand('workbench.action.quickOpen', ':' + message);
-        vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
-        resetMultiStepCommandState();
-    } else {
-        vscode.commands.executeCommand(commandNameToID[message]);
-        setMultiStepCommandState(message);
-    }
-}
-function handleGoToFile(message: any) {
-    if (awaitingCommandArgument) {
-        //Closing it here because it's already open since we want the user to see the list of files
-        vscode.commands.executeCommand('workbench.action.closeQuickOpen');
-        // Inputs the chosen file name and selects the top option
-        vscode.commands.executeCommand('workbench.action.quickOpen', message);
-        vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
-        resetMultiStepCommandState();
-    } else {
-        vscode.commands.executeCommand(commandNameToID[message]);
-        setMultiStepCommandState(message);
-    }
-}
 function handleMessage(message: any): Boolean {
+    if (muted && message !== 'wake') {
+        FrontEndController?.waitForActivation();
+        return false;
+    }
+
     if (awaitingCommandArgument && !commandHandlers[message]) {
         console.log('accepting message as parameter');
         if (commandHandlers[currentMultistepCommand]) {
@@ -468,6 +492,12 @@ function updateRemappingWindow() {
                         const { newName, index } = message;
                         renameAlias(newName, index);
                         break;
+                    case 'clear':
+                        clearAllRemappings();
+                        break;
+                    case 'delete':
+                        deleteRemapping(message.index);
+                        break;
                 }
             });
 
@@ -487,6 +517,22 @@ function updateRemappingWindow() {
             renamingPanel.webview.html = FrontEndController.getVCRemappingContentNoBindings();
         }
     }
+}
+
+function deleteRemapping(index: number) {
+    const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+    const rawData = fs.readFileSync(filePath, 'utf8');
+    let parsedData = JSON.parse(rawData);
+
+    const originalCommandName = Object.keys(parsedData.commands)[index];
+    const currentAlias = parsedData.commands[originalCommandName];
+
+    delete parsedData.commands[originalCommandName];
+    delete parsedData.aliases[currentAlias];
+
+    fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
+
+    updateRemappingWindow();
 }
 
 function renameAlias(newName: string, index: number) {
@@ -513,7 +559,43 @@ function renameAlias(newName: string, index: number) {
     updateRemappingWindow();
 }
 
+function clearAllRemappings() {
+    vscode.window
+        .showInputBox({
+            prompt: 'Type "YES" to confirm you want to clear all. This action cannot be undone.',
+            placeHolder: 'Type YES to confirm',
+            validateInput: (input) => {
+                return input.toUpperCase() === 'YES' ? null : 'You must type "YES" to confirm.';
+            },
+        })
+        .then((input) => {
+            if (input && input.toUpperCase() === 'YES') {
+                const filePath = extensionContext.asAbsolutePath(path.join('bundled', 'tool', 'renaming.json'));
+                const rawData = fs.readFileSync(filePath, 'utf8');
+                let parsedData = JSON.parse(rawData);
+
+                for (const section in parsedData) {
+                    for (const remapping in parsedData[section]) {
+                        delete parsedData[section][remapping];
+                    }
+                }
+
+                fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2), 'utf8');
+
+                updateRemappingWindow();
+                vscode.window.showInformationMessage('All items have been cleared!');
+            } else {
+                vscode.window.showInformationMessage('Action canceled.');
+            }
+        });
+}
+
 async function handleCommandSuggestions(parameters: [], locale: string) {
+    if (muted) {
+        FrontEndController?.waitForActivation();
+        return;
+    }
+
     const selection = await vscode.window.showQuickPick(parameters, {
         placeHolder: 'Select an option',
     });
@@ -521,19 +603,23 @@ async function handleCommandSuggestions(parameters: [], locale: string) {
     if (selection) {
         vscode.window.showInformationMessage(`You selected: ${selection}`);
         if (locale == 'it') {
-            vscode.commands.executeCommand(commandNameToIDIta[selection]);
+            executeCommand(commandNameToIDIta[selection]);
         } else if (locale == 'tr') {
-            vscode.commands.executeCommand(commandNameToIDTr[selection]);
+            executeCommand(commandNameToIDTr[selection]);
         } else {
-            vscode.commands.executeCommand(commandNameToID[selection]);
+            executeCommand(commandNameToID[selection]);
         }
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
     } else {
-        FrontEndController?.waitForActivation('');
+        FrontEndController?.waitForActivation();
         return;
     }
 }
 
 export function getContext() {
     return extensionContext;
+}
+
+export function setMutedState(newState: boolean) {
+    muted = newState;
 }

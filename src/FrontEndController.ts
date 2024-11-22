@@ -3,6 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { getContext } from './extension';
+import { lsClient } from './extension';
+import { setMutedState } from './extension';
+
+import { frontendTextLookup } from './frontend-text-mapping';
+import { frontendTextLookupEsp } from './frontend-text-mapping-esp';
 
 let iconPathBlue = vscode.Uri.file('');
 let iconPathGreen = vscode.Uri.file('');
@@ -10,10 +15,12 @@ let iconPathGrey = vscode.Uri.file('');
 let iconPathMicUnmuted = vscode.Uri.file('');
 let iconPathMicMuted = vscode.Uri.file('');
 
+let locale = vscode.env.language;
+
 let voiceControlStatusViewer: VoiceControlStatusViewer;
 export class FrontEndController {
-    static statusText: string = 'Voice Control is starting up...';
-    static muteStatusText: string = 'Unmuted.';
+    static statusText: string = '';
+    static muteStatusText: string = '';
     static color: string = 'grey';
     static muted: boolean = false;
 
@@ -43,53 +50,37 @@ export class FrontEndController {
         FrontEndController.statusBarItem.command = 'VoiceControl.toggleMute';
 
         vscode.commands.registerCommand('VoiceControlStatusViewer.refresh', () => voiceControlStatusViewer.refresh());
+
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
+        this.muteStatusText = FrontEndController.getTranslatedText('isUnmuted');
     }
 
-    static waitForActivation(message: string) {
+    static waitForActivation() {
         this.listening = false;
-        if (message !== '') {
-            FrontEndController.statusText = message;
-        } else {
-            FrontEndController.statusText = 'Voice Control : Waiting for activation word';
-        }
-
-        let micIcon = '$(mic)' + '';
-
-        if (FrontEndController.muted) {
-            micIcon = '$(close)' + '';
-        }
 
         FrontEndController.color = 'blue';
-        this.statusBarItem.text = micIcon + FrontEndController.statusText;
-        this.statusBarItem.show();
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
 
         FrontEndController.refreshStatusViewer();
         setTimeout(() => {
             if (!this.listening) {
-                if (FrontEndController.muted) {
-                    micIcon = '$(close)' + '';
-                } else {
-                    micIcon = '$(mic)' + '';
-                }
-                this.statusBarItem.text = micIcon + 'Voice Control : Waiting for activation word';
                 FrontEndController.refreshStatusViewer();
             }
         }, 3000);
     }
 
     static loading() {
-        FrontEndController.statusBarItem.text = '$(sync~loading)' + 'Voice Control : Waiting for activation word';
-        FrontEndController.statusBarItem.show();
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
 
         FrontEndController.refreshStatusViewer();
     }
 
     static listenForCommand() {
         FrontEndController.listening = true;
-        FrontEndController.statusText = 'Voice Control : Listening for voice command...';
+
         FrontEndController.color = 'green';
-        FrontEndController.statusBarItem.text = '$(sync~spin)' + FrontEndController.statusText;
-        FrontEndController.statusBarItem.show();
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
+
         FrontEndController.refreshStatusViewer();
     }
 
@@ -100,7 +91,9 @@ export class FrontEndController {
     static toggleMute() {
         FrontEndController.muted = !FrontEndController.muted;
 
-        FrontEndController.muteStatusText = FrontEndController.muted ? 'Muted.' : 'Unmuted.';
+        FrontEndController.muteStatusText = FrontEndController.muted
+            ? FrontEndController.getTranslatedText('isMuted')
+            : FrontEndController.getTranslatedText('isUnmuted');
 
         let micIcon = '';
         if (FrontEndController.muted) {
@@ -108,9 +101,22 @@ export class FrontEndController {
         } else {
             micIcon = '$(mic)' + '';
         }
-        this.statusBarItem.text = micIcon + 'Voice Control : Waiting for activation word';
 
+        setMutedState(FrontEndController.muted);
+
+        FrontEndController.statusText = VoiceControlStatusViewer.getIconStatusText();
         FrontEndController.refreshStatusViewer();
+    }
+
+    static getTranslatedText(key: string) {
+        switch (locale) {
+            case 'es':
+                return frontendTextLookupEsp[key];
+                break;
+            default:
+                return frontendTextLookup[key];
+                break;
+        }
     }
 
     static getVCRemappingContent(): string {
@@ -145,6 +151,7 @@ export class FrontEndController {
                 <span class="original-command">${originalCommands[i]}</span>
                 <span class="arrow">→</span>
                 <span class="renamed-command">${renamedCommands[i]}</span>
+                <button onClick="handleDelete(${i})">Remove</button>
             </div>`;
         }
         parsedCommandList += '</div>'; // Close the command list container
@@ -172,6 +179,8 @@ export class FrontEndController {
 
     .message-box {
         justify-content: center;
+        display: flex;
+        flex-direction: column;
         width: 50%;
         max-width: none;
         margin-top: 20px;
@@ -252,6 +261,27 @@ export class FrontEndController {
         outline: none;
         border-bottom: 1px solid #569cd6;
     }
+
+    .menu-item button {
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    #searchInput {
+        background-color: var(--vscode-button-background);
+        border: none;
+        outline: none;
+        border-bottom: 1px solid #569cd6;
+        text-align: center;
+        margin-bottom: 8px;
+        color: white;
+
+    }
+
+    ::placeholder {
+        color: white;
+      }
+
 </style>
 
 </head>
@@ -259,11 +289,26 @@ export class FrontEndController {
     <div class="message-box">
         <div class="background-overlay"></div> <!-- This div applies the darkened background -->
         <h1>Remap Voice Bindings</h1>
+        <button class="menu-item" onClick="handleClearAll()">Clear All</button>
+        <input type="text" id="searchInput" placeholder="Search...">
         ${parsedCommandList} <!-- Inject the dynamically generated command list here -->
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
+
+        function handleDelete(index) {
+            vscode.postMessage({
+                command: 'delete',
+                index: index
+            });
+        }
+
+        function handleClearAll() {
+            vscode.postMessage({
+                command: 'clear',
+            }); 
+        }
 
         function handleRename(newValue, index) {
             vscode.postMessage({
@@ -276,6 +321,7 @@ export class FrontEndController {
         document.querySelectorAll('.menu-item').forEach((item) => {
             const originalSpan = item.querySelector('.original-command');
             const index = item.dataset.index;
+            const removeButton = item.querySelector('.remove-button');
 
             originalSpan.addEventListener('click', function () {
                 const currentText = originalSpan.innerText;
@@ -306,6 +352,25 @@ export class FrontEndController {
                 input.focus();
             });
         });
+    </script>
+    <script>
+        function handleSearchInput(value) {
+            
+            const menuItems = document.querySelectorAll(".command-list .menu-item");
+
+            menuItems.forEach(item => {
+                const alias = item.querySelector(".original-command").textContent.toLowerCase();
+                const command = item.querySelector(".renamed-command").textContent.toLowerCase();
+            
+                if (alias.includes(value.toLowerCase()) || command.includes(value.toLowerCase())) {
+                    item.style.display = "block";
+                } else {
+                    item.style.display = "none";
+                }
+            });
+        }
+        const searchInput = document.getElementById("searchInput");
+        searchInput.oninput = function() {handleSearchInput(searchInput.value)};
     </script>
 </body>
 </html>
@@ -422,11 +487,58 @@ export class VoiceControlStatusViewer implements vscode.TreeDataProvider<vscode.
         switch (FrontEndController.muted) {
             case true:
                 this.muteIcon.iconPath = iconPathMicMuted;
+                this.statusIcon.iconPath = iconPathGrey;
                 break;
 
             case false:
                 this.muteIcon.iconPath = iconPathMicUnmuted;
                 break;
+        }
+    }
+
+    static updateStatusBarText() {
+        let micIcon = '$(mic)' + '';
+
+        if (FrontEndController.muted) {
+            micIcon = '$(close)' + '';
+        }
+
+        switch (FrontEndController.color) {
+            case 'blue':
+                FrontEndController.statusBarItem.text =
+                    micIcon + FrontEndController.getTranslatedText('waitingForActivationWord');
+                FrontEndController.statusBarItem.show();
+                return;
+            case 'grey':
+                FrontEndController.statusBarItem.text = micIcon + FrontEndController.getTranslatedText('startingUp');
+                return;
+            case 'green':
+                FrontEndController.statusBarItem.text =
+                    '$(sync~spin)' + FrontEndController.getTranslatedText('listeningForCommand');
+                FrontEndController.statusBarItem.show();
+                return;
+
+            default:
+                return 'Voice Control';
+        }
+    }
+
+    static getIconStatusText(): string {
+        VoiceControlStatusViewer.updateStatusBarText();
+        if (FrontEndController.muted) {
+            return FrontEndController.getTranslatedText('isMuted');
+        }
+
+        switch (FrontEndController.color) {
+            case 'blue':
+                return FrontEndController.getTranslatedText('waitingForActivationWord');
+            case 'grey':
+                return FrontEndController.getTranslatedText('startingUp');
+                break;
+            case 'green':
+                return FrontEndController.getTranslatedText('listeningForCommand');
+            default:
+                return 'Voice Control'; //Locale agnostic
         }
     }
 

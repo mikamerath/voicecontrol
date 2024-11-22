@@ -19,6 +19,8 @@ import string
 isMultiStep = False
 isRenamingCommand = False
 renamingInputs = []
+renameCommandSet = {"Rename Command...","Rinomina Comando...","Komutu Yeniden Adlandır...","Cambiar Nombre Del Comando...","Renomear Comando...","Renommer La Commande...","Parancs Átnevezése...","Переименовать команду...","コマンドの名前を変更...","명령 이름 바꾸기...","Zmień Nazwę Polecenia...","Přejmenovat Příkaz...","Befehl Umbenennen...",'重命名命令...'}
+
 
 """This helper method takes the text (text produced from the speech to text model)
 and processes it to get rid of extra characters like punctuation."""
@@ -60,10 +62,9 @@ def __jaccardSimilarity(wordSet1, wordSet2):
 """Helper method that checks if text contains a multi-step command."""
 
 
-# A similarity near 1 indicates the two sets of words are very similar.
 def __setMultiStep(text):
     global isMultiStep
-    if "..." in text or "Preferences: Color Theme" in text:
+    if "Rename Command..." in text:
         isMultiStep = True
     else:
         isMultiStep = False
@@ -72,7 +73,7 @@ def __setMultiStep(text):
 def __searchForAlias(text):
     extension_path = os.path.dirname(
         __file__
-    )  # This assumes the script is in the `src` directory
+    )
     path = os.path.join(extension_path, "renaming.json")
 
     if not os.path.exists(path):
@@ -96,7 +97,30 @@ def __searchForAlias(text):
             return command
         else:
             return ""
+        
+        
+def __searchForCommandGroup(text):
+    extension_path = os.path.dirname(__file__)
+    path = os.path.join(extension_path, "command_groups.json")
 
+    # If the JSON file doesn't exist, create it with default data 
+    if not os.path.exists(path):
+        default_data = []
+
+        with open(path, "w") as renaming_file:
+            json.dump(default_data, renaming_file, indent=2)
+
+    # Load the JSON data
+    with open(path, "r") as renaming_file:
+        data = json.load(renaming_file)
+    translator = str.maketrans("", "", string.punctuation)
+    cleaned_text = text.translate(translator).lower().strip().title()
+    # Search for the command group by name
+    for group in data:
+        if group["name"].lower() == cleaned_text.lower():
+            return group["commands"]
+
+    return ""  # Return an empty string if the name doesn't exist
 
 def renameCommand(
     finalCommands,
@@ -186,7 +210,7 @@ def searchForCommands(
         if similarity == 1.0:
             similarPhrase.append(phrase.split("\n")[0])
             __setMultiStep(phrase.split("\n")[0])
-            if similarPhrase[0] == "Rename Command...":
+            if determineIfRenameCommand(similarPhrase[0]):
                 isRenamingCommand = True
             return similarPhrase
         else:
@@ -219,12 +243,11 @@ def searchForCommands(
     else:
         finalCommands.append("Command not found")
 
-    # Check if this is a renaming command
-    if finalCommands.__len__() > 0 and (
-        finalCommands[0] == "Rename Command..."
-        or finalCommands[0] == "Rinomina Comando..."
-    ):
-        isRenamingCommand = True
+    # Check if this is a renaming command/multi step command
+    if finalCommands.__len__() > 0: 
+        __setMultiStep(finalCommands[0])
+        if determineIfRenameCommand(finalCommands[0]):
+            isRenamingCommand = True
 
     # Check if command suggestions need to be displayed
     if (
@@ -237,11 +260,11 @@ def searchForCommands(
         finalCommands[0] = "Display command suggestions"
         if numberCommandSuggestions <= suggestedPhrases.__len__():
             for suggestion in suggestedPhrases[: -numberCommandSuggestions - 1 : -1]:
-                if suggestion[1] != "Rename Command...":
+                if not determineIfRenameCommand(suggestion[1]):
                     finalCommands.append(suggestion[1])
         else:
             for suggestion in suggestedPhrases[::-1]:
-                if suggestion[1] != "Rename Command...":
+                if not determineIfRenameCommand(suggestion[1]):
                     finalCommands.append(suggestion[1])
 
     # Exact command, suggested commands (lower index=most similar), or command not found.
@@ -318,16 +341,21 @@ def findSimilarPhrases(
     processedText = set(__preprocessText(text))
     # Check for an alias match first.
     command_from_alias = __searchForAlias(text)
+    command_from_commandGroups = __searchForCommandGroup(text)
     if command_from_alias:
         finalCommands.append(command_from_alias)
         # Check if this is a renaming command
         if finalCommands.__len__() > 0 and (
-            finalCommands[0] == "Rename Command..."
-            or finalCommands[0] == "Rinomina Comando..."
+            determineIfRenameCommand(finalCommands[0])
         ):
             isRenamingCommand = True
         # Check if this is a multi-step command
         __setMultiStep(finalCommands[0])
+        return finalCommands
+    command_from_commandGroups = __searchForCommandGroup(text)
+    if command_from_commandGroups:
+        finalCommands.append("Command Group")
+        finalCommands.append(command_from_commandGroups)       
     else:
         finalCommands = searchForCommands(
             processedText,
@@ -340,3 +368,10 @@ def findSimilarPhrases(
 
     # Exact command, suggested commands (lower index=most similar), or command not found.
     return finalCommands
+
+def determineIfRenameCommand(command):
+    global renameCommandSet
+    if command in renameCommandSet:
+        isMultiStep = True
+        return True
+    return False

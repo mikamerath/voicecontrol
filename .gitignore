@@ -9,6 +9,8 @@ PythonEnvironment
 .nox/
 bundled/libs/
 bundled/tool/renaming.json
+bundled/tool/command_groups.json
 **/__pycache__
 **/.pytest_cache
 **/.vs
+bundled/tool/command_groups.json
